@@ -4,7 +4,15 @@
 
 import math
 from src.nonaga.game_state import NonagaGame
+from src.nonaga.hexgrid import parse_key
 
+def adjacent_pair_count(pawns3):
+    count = 0
+    for i in range(3):
+        for j in range(i + 1, 3):
+            if hex_distance(pawns3[i], pawns3[j]) == 1:
+                count += 1
+    return count
 
 # ---------- Fast clone ----------
 def clone_game(g: NonagaGame) -> NonagaGame:
@@ -59,21 +67,63 @@ def mobility(game, player):
 
 
 def evaluate(game, ai_player):
-    """Heuristic score: higher is better for ai_player."""
     opp = "B" if ai_player == "A" else "A"
 
     if game.is_win(ai_player):
-        return 10_000
+        return 10000
     if game.is_win(opp):
-        return -10_000
+        return -10000
 
-    my_cluster = pairwise_distance_sum(game.pawns[ai_player])   # want small
-    opp_cluster = pairwise_distance_sum(game.pawns[opp])        # want large
+    my_cluster = pairwise_distance_sum(game.pawns[ai_player])
+    opp_cluster = pairwise_distance_sum(game.pawns[opp])
     my_mob = mobility(game, ai_player)
     opp_mob = mobility(game, opp)
+    my_adj = adjacent_pair_count(game.pawns[ai_player])
+    opp_adj = adjacent_pair_count(game.pawns[opp])
 
-    return (-15 * my_cluster) + (10 * opp_cluster) + (3 * (my_mob - opp_mob))
+    return (
+        -12 * my_cluster
+        + 8 * opp_cluster
+        + 2 * (my_mob - opp_mob)
+        + 40 * my_adj
+        - 45 * opp_adj
+    )
 
+def endpoint_score(game, player, pawn_i, target):
+    g1 = clone_game(game)
+    g1.pawns[player][pawn_i] = target
+    opp = "B" if player == "A" else "A"
+
+    my_cluster = pairwise_distance_sum(g1.pawns[player])
+    opp_cluster = pairwise_distance_sum(g1.pawns[opp])
+    my_adj = adjacent_pair_count(g1.pawns[player])
+    opp_adj = adjacent_pair_count(g1.pawns[opp])
+
+    return (-12 * my_cluster) + (8 * opp_cluster) + (30 * my_adj) - (35 * opp_adj)
+
+
+def removal_score(g1, player, rem_key):
+    if rem_key not in g1.occupied:
+        return -10**9
+
+    opp = "B" if player == "A" else "A"
+    g2 = clone_game(g1)
+    g2.occupied.remove(rem_key)
+
+    my_cluster = pairwise_distance_sum(g2.pawns[player])
+    opp_cluster = pairwise_distance_sum(g2.pawns[opp])
+    my_adj = adjacent_pair_count(g2.pawns[player])
+    opp_adj = adjacent_pair_count(g2.pawns[opp])
+    my_mob = mobility(g2, player)
+    opp_mob = mobility(g2, opp)
+
+    return (
+        -10 * my_cluster
+        + 8 * opp_cluster
+        + 25 * my_adj
+        - 30 * opp_adj
+        + 2 * (my_mob - opp_mob)
+    )
 
 def generate_turns(game, player, top_k_placements=6):
     """
@@ -88,17 +138,17 @@ def generate_turns(game, player, top_k_placements=6):
 
     for pawn_i, pawn_pos in enumerate(game.pawns[player]):
 
-        # --- LIMIT 1: restrict pawn slide destinations ---
         endpoints = game.pawn_moves_from(pawn_pos)
-        endpoints = endpoints[:3]   # <--- ADD THIS LINE
+        endpoints.sort(key=lambda t: endpoint_score(game, player, pawn_i, t), reverse=True)
+        endpoints = endpoints[:2]
 
         for target in endpoints:
             g1 = clone_game(game)
             g1.pawns[player][pawn_i] = target
 
-            # --- LIMIT 2: restrict removable discs ---
             removals = list(g1.compute_valid_removals())
-            removals = removals[:5]   # <--- ADD THIS LINE
+            removals.sort(key=lambda rem: removal_score(g1, player, rem), reverse=True)
+            removals = removals[:4]
 
             for rem_key in removals:
                 g2 = clone_game(g1)
@@ -116,11 +166,28 @@ def generate_turns(game, player, top_k_placements=6):
                 opp_pawns = g2.pawns[opp]
 
                 def place_score(place_key):
-                    q, r = map(int, place_key.split(","))
-                    pos = (q, r)
-                    near_me = min(hex_distance(pos, p) for p in my_pawns)
-                    near_opp = min(hex_distance(pos, p) for p in opp_pawns)
-                    return (-3 * near_me) + (1 * near_opp)
+                    pos = parse_key(place_key)
+
+                    temp = clone_game(g2)
+                    temp.occupied.add(place_key)
+                    temp.blocked = place_key
+
+                    my_mob = mobility(temp, player)
+                    opp_mob = mobility(temp, opp)
+                    my_adj = adjacent_pair_count(temp.pawns[player])
+                    opp_adj = adjacent_pair_count(temp.pawns[opp])
+
+                    near_me = min(hex_distance(pos, p) for p in temp.pawns[player])
+                    near_opp = min(hex_distance(pos, p) for p in temp.pawns[opp])
+
+                    return (
+                        3 * my_mob
+                        - 4 * opp_mob
+                        + 25 * my_adj
+                        - 30 * opp_adj
+                        - 2 * near_me
+                        - 1 * near_opp
+                    )
 
                 placements.sort(key=place_score, reverse=True)
 
@@ -185,7 +252,7 @@ def minimax(game, depth, alpha, beta, to_move, ai_player, top_k_placements=12):
         return best
 
 
-def choose_ai_turn(game, ai_player, depth=3, top_k_placements=12):
+def choose_ai_turn(game, ai_player, depth=3, top_k_placements=6):
     """Return best full-turn action for ai_player, or None if no moves."""
     opp = "B" if ai_player == "A" else "A"
     best_turn = None
