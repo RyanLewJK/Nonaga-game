@@ -9,7 +9,7 @@ from src.nonaga.constants import SCREEN_W, SCREEN_H
 from src.nonaga.menu import MenuUI
 
 # IMPORTANT: make sure ai.py is in the same folder
-from src.nonaga.ai import choose_ai_turn
+from src.nonaga.ai_new import choose_ai_turn
 
 
 def run_game(choice):
