@@ -183,7 +183,7 @@ class NonagaGame:
         return len(seen) == 3
 
     def end_turn_after_placement(self, placed_key: str):
-        self.blocked = placed_key  # opponent can't remove this disc next turn
+        self.blocked = None  # opponent can't remove this disc next turn
         self.removable = None
         self.selected_idx = None
         self.valid_moves = []
@@ -243,6 +243,6 @@ class NonagaGame:
             return
         cell_key = k(pos)
         if cell_key in self.valid_placements:
-            # place disc
+            self.snapshot()
             self.occupied.add(cell_key)
             self.end_turn_after_placement(cell_key)
