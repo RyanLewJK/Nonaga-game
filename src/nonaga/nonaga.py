@@ -24,6 +24,11 @@ def run_game(choice):
     renderer = Renderer(screen)
     input_handler = InputHandler(game)
 
+    # draw initial position immediately
+    renderer.draw(game)
+    pygame.display.flip()
+    pygame.event.pump()
+
     single_player = (choice.mode == "SINGLE")
     HUMAN_PLAYER = choice.side                 # "A" or "B"
     AI_PLAYER = "B" if HUMAN_PLAYER == "A" else "A"
