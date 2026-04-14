@@ -102,15 +102,22 @@ class NonagaGame:
 
         for dq, dr in DIRS:
             cq, cr = q, r
+            moved = False  # track movement
+
             while True:
                 nq, nr = cq + dq, cr + dr
+
                 if k((nq, nr)) not in self.occupied:
                     break
                 if k((nq, nr)) in pawnset:
                     break
+
                 cq, cr = nq, nr
-            if (cq, cr) != (q, r):
+                moved = True  # actually moved
+
+            if moved:
                 moves.append((cq, cr))
+
         return moves
 
     def compute_valid_removals(self) -> Set[str]:
@@ -149,14 +156,22 @@ class NonagaGame:
             q, r = parse_key(cell)
             qs.append(q)
             rs.append(r)
+
         qmin, qmax = min(qs) - 2, max(qs) + 2
         rmin, rmax = min(rs) - 2, max(rs) + 2
 
         out: Set[str] = set()
         for q in range(qmin, qmax + 1):
             for r in range(rmin, rmax + 1):
+                cell_key = k((q, r))
+
+                # do not allow placing the removed disc back in the same spot
+                if cell_key == self.removable:
+                    continue
+
                 if self.can_place_at((q, r)):
-                    out.add(k((q, r)))
+                    out.add(cell_key)
+
         return out
 
     def pawn_index_at(self, player: str, cell_key: str) -> Optional[int]:

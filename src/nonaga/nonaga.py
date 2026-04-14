@@ -8,13 +8,12 @@ from src.nonaga.input_handler import InputHandler
 from src.nonaga.constants import SCREEN_W, SCREEN_H
 from src.nonaga.menu import MenuUI
 
-# IMPORTANT: make sure ai.py is in the same folder
 from src.nonaga.ai_new import choose_ai_turn
 
 
 def run_game(choice):
     DEBUG_AI = True
-    DEBUG_EVENTS = False  # set True if you want to log events
+    DEBUG_EVENTS = False
 
     screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
     pygame.display.set_caption("Nonaga (Python/Pygame)")
@@ -24,21 +23,20 @@ def run_game(choice):
     renderer = Renderer(screen)
     input_handler = InputHandler(game)
 
-    # draw initial position immediately
+    single_player = (choice.mode == "SINGLE")
+    HUMAN_PLAYER = choice.side
+    AI_PLAYER = "B" if HUMAN_PLAYER == "A" else "A"
+
+    ai_pending = False
+    ai_debug_once = False
+
+    # draw initial board immediately so screen is not black
     renderer.draw(game)
     pygame.display.flip()
     pygame.event.pump()
 
-    single_player = (choice.mode == "SINGLE")
-    HUMAN_PLAYER = choice.side                 # "A" or "B"
-    AI_PLAYER = "B" if HUMAN_PLAYER == "A" else "A"
-
-    ai_pending = False
-    ai_debug_once = False  # so "AI TURN DETECTED" prints once per AI turn
-
     running = True
     while running:
-        # If it's AI's turn, queue it (even if we missed the exact click event)
         if single_player and game.current == AI_PLAYER and game.phase == Phase.MOVE_PAWN:
             ai_pending = True
             if DEBUG_AI and not ai_debug_once:
@@ -54,31 +52,33 @@ def run_game(choice):
 
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
-                running = False
-                continue
+                return "QUIT"
 
             if DEBUG_EVENTS and ev.type in (pygame.MOUSEBUTTONDOWN, pygame.KEYDOWN):
                 print("EVENT:", ev)
 
-            # Block human input during AI turn (single player only)
-            if single_player and game.current != HUMAN_PLAYER:
+            if single_player and game.current != HUMAN_PLAYER and game.phase != Phase.GAME_OVER:
                 if DEBUG_AI and ev.type == pygame.MOUSEBUTTONDOWN:
                     print("Human clicked during AI turn (ignored).")
                 continue
 
-            input_handler.handle_event(ev)
+            result = input_handler.handle_event(ev)
+            if result == "MENU":
+                return "MENU"
 
-        # --- Run AI once when pending ---
+        # draw before AI move
+        renderer.draw(game)
+        pygame.display.flip()
+
         if single_player and ai_pending and game.current == AI_PLAYER and game.phase == Phase.MOVE_PAWN:
             ai_pending = False
-            ai_debug_once = False  # reset so next AI turn prints again
+            ai_debug_once = False
+            pygame.event.pump()
 
             try:
                 if DEBUG_AI:
                     print("AI: calling choose_ai_turn...")
 
-                # TEMP SETTINGS while debugging:
-                # start small; once stable, bump depth/top_k back up
                 turn = choose_ai_turn(game, AI_PLAYER, depth=2, top_k_placements=6)
 
                 if DEBUG_AI:
@@ -89,13 +89,15 @@ def run_game(choice):
                     game.current = HUMAN_PLAYER
                 else:
                     pawn_i, target, rem_key, place_key = turn
-                    print("AI: applying turn ->",
-                          "pawn_i:", pawn_i,
-                          "target:", target,
-                          "remove:", rem_key,
-                          "place:", place_key)
+                    print(
+                        "AI: applying turn ->",
+                        "pawn_i:", pawn_i,
+                        "target:", target,
+                        "remove:", rem_key,
+                        "place:", place_key
+                    )
 
-                    # Apply chosen full turn to the REAL game
+                    game.snapshot()
                     game.pawns[AI_PLAYER][pawn_i] = target
                     game.occupied.remove(rem_key)
                     game.occupied.add(place_key)
@@ -113,28 +115,28 @@ def run_game(choice):
                 print("A pawns:", game.pawns["A"])
                 print("B pawns:", game.pawns["B"])
                 print("occupied count:", len(game.occupied))
-                running = False  # stop loop so you can read the console
+                return "MENU"
 
-        renderer.draw(game)
-        pygame.display.flip()
         clock.tick(60)
 
 
 def main():
     pygame.init()
 
-    screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
-    pygame.display.set_caption("Nonaga (Python/Pygame)")
-    clock = pygame.time.Clock()
+    while True:
+        screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+        pygame.display.set_caption("Nonaga (Python/Pygame)")
+        clock = pygame.time.Clock()
 
-    menu = MenuUI(screen)
-    choice = menu.run(clock)
+        menu = MenuUI(screen)
+        choice = menu.run(clock)
 
-    if choice is None:
-        pygame.quit()
-        sys.exit(0)
+        if choice is None:
+            break
 
-    run_game(choice)
+        result = run_game(choice)
+        if result == "QUIT":
+            break
 
     pygame.quit()
     sys.exit(0)

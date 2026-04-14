@@ -92,3 +92,12 @@ class Renderer:
 
         if game.phase == Phase.GAME_OVER:
             self.draw_text(f"Player {game.current} WINS!", 14, 110, self.big, (255, 230, 150))
+        
+            # 👇 NEW: draw button
+            bx, by, bw, bh = 14, 140, 200, 40
+            pygame.draw.rect(self.screen, (80, 80, 80), (bx, by, bw, bh))
+            pygame.draw.rect(self.screen, (200, 200, 200), (bx, by, bw, bh), 2)
+
+            label = self.font.render("Back to Menu", True, (255, 255, 255))
+            rect = label.get_rect(center=(bx + bw // 2, by + bh // 2))
+            self.screen.blit(label, rect)
