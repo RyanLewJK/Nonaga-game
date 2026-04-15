@@ -18,10 +18,14 @@ class Snapshot:
     selected_idx: Optional[int]
     removable: Optional[str]
     blocked: Optional[str]
+    time_left: Dict[str, float]
+    winner: Optional[str]
 
 
 class NonagaGame:
     def __init__(self):
+        self.time_left = {"A": 300.0, "B": 300.0}   # 5 minutes each
+        self.winner: Optional[str] = None
         self.occupied: Set[str] = set()
         self.pawns: Dict[str, List[Axial]] = {"A": [], "B": []}
         self.current = "A"
@@ -47,6 +51,8 @@ class NonagaGame:
                 selected_idx=self.selected_idx,
                 removable=self.removable,
                 blocked=self.blocked,
+                time_left=dict(self.time_left),
+                winner=self.winner,
             )
         )
         if len(self.history) > 200:
@@ -63,6 +69,8 @@ class NonagaGame:
         self.selected_idx = h.selected_idx
         self.removable = h.removable
         self.blocked = h.blocked
+        self.time_left = dict(h.time_left)
+        self.winner = h.winner
         self.recompute()
 
     def reset(self):
@@ -85,6 +93,8 @@ class NonagaGame:
         self.selected_idx = None
         self.removable = None
         self.blocked = None
+        self.time_left = {"A": 300.0, "B": 300.0}
+        self.winner = None
         self.recompute()
 
     def pawn_set(self) -> Set[str]:
@@ -198,7 +208,7 @@ class NonagaGame:
         return len(seen) == 3
 
     def end_turn_after_placement(self, placed_key: str):
-        self.blocked = None  # opponent can't remove this disc next turn
+        self.blocked = placed_key
         self.removable = None
         self.selected_idx = None
         self.valid_moves = []
@@ -206,6 +216,7 @@ class NonagaGame:
         self.valid_placements = set()
 
         if self.is_win(self.current):
+            self.winner = self.current
             self.phase = Phase.GAME_OVER
             return
 
@@ -261,3 +272,24 @@ class NonagaGame:
             self.snapshot()
             self.occupied.add(cell_key)
             self.end_turn_after_placement(cell_key)
+
+
+    def update_timer(self, dt: float):
+        if self.phase == Phase.GAME_OVER:
+            return
+        self.time_left[self.current] -= dt
+        if self.time_left[self.current] <= 0:
+            self.time_left[self.current] = 0
+            self.winner = "B" if self.current == "A" else "A"
+            self.phase = Phase.GAME_OVER
+            self.selected_idx = None
+            self.valid_moves = []
+            self.valid_removals = set()
+            self.valid_placements = set()
+
+
+    def format_time(self, player: str) -> str:
+        total = max(0, int(self.time_left[player]))
+        minutes = total // 60
+        seconds = total % 60
+        return f"{minutes:02d}:{seconds:02d}"

@@ -16,11 +16,16 @@ class Renderer:
         self.font = pygame.font.SysFont(None, 22)
         self.big = pygame.font.SysFont(None, 28)
 
+    def player_label(self, player: str, single_player=False, human_player="A") -> str:
+        if not single_player:
+            return f"Player {player}"
+        return "You" if player == human_player else "Opponent"
+
     def draw_text(self, msg: str, x: int, y: int, fnt, color=UI_TEXT):
         surf = fnt.render(msg, True, color)
         self.screen.blit(surf, (x, y))
 
-    def draw(self, game):
+    def draw(self, game, single_player=False, human_player="A"):
         self.screen.fill(BG)
 
         # discs
@@ -83,18 +88,27 @@ class Renderer:
             Phase.GAME_OVER: "Game over",
         }[game.phase]
 
+        current_label = self.player_label(game.current, single_player, human_player)
+        a_label = self.player_label("A", single_player, human_player)
+        b_label = self.player_label("B", single_player, human_player)
+
         self.draw_text("Nonaga (Pygame)", 14, 12, self.big)
-        self.draw_text(f"Turn: Player {game.current}", 14, 44, self.font)
+        self.draw_text(f"Turn: {current_label}", 14, 44, self.font)
         self.draw_text(f"Phase: {phase_text}", 14, 66, self.font)
+        self.draw_text(f"{a_label} Time: {game.format_time('A')}", 14, 88, self.font)
+        self.draw_text(f"{b_label} Time: {game.format_time('B')}", 14, 110, self.font)
+
         if game.blocked:
-            self.draw_text(f"Blocked disc this turn: {game.blocked}", 14, 88, self.font, UI_MUTED)
+            self.draw_text(f"Blocked disc this turn: {game.blocked}", 14, 132, self.font, UI_MUTED)
+
         self.draw_text("Keys: R = reset, Ctrl+Z = undo", 14, SCREEN_H - 28, self.font, UI_MUTED)
 
         if game.phase == Phase.GAME_OVER:
-            self.draw_text(f"Player {game.current} WINS!", 14, 110, self.big, (255, 230, 150))
-        
-            # 👇 NEW: draw button
-            bx, by, bw, bh = 14, 140, 200, 40
+            winner = game.winner if game.winner is not None else game.current
+            winner_label = self.player_label(winner, single_player, human_player)
+            self.draw_text(f"{winner_label} WINS!", 14, 160, self.big, (255, 230, 150))
+
+            bx, by, bw, bh = 14, 200, 200, 40
             pygame.draw.rect(self.screen, (80, 80, 80), (bx, by, bw, bh))
             pygame.draw.rect(self.screen, (200, 200, 200), (bx, by, bw, bh), 2)
 

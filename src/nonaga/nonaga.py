@@ -30,13 +30,23 @@ def run_game(choice):
     ai_pending = False
     ai_debug_once = False
 
-    # draw initial board immediately so screen is not black
-    renderer.draw(game)
+    # Draw initial board immediately so screen is not black
+    renderer.draw(game, single_player=single_player, human_player=HUMAN_PLAYER)
     pygame.display.flip()
     pygame.event.pump()
 
     running = True
     while running:
+        dt = clock.tick(60) / 1000.0
+
+        # Update timer every frame
+        game.update_timer(dt)
+
+        # If time ran out, just keep showing game-over screen
+        if game.phase == Phase.GAME_OVER:
+            ai_pending = False
+
+        # Queue AI turn
         if single_player and game.current == AI_PLAYER and game.phase == Phase.MOVE_PAWN:
             ai_pending = True
             if DEBUG_AI and not ai_debug_once:
@@ -57,6 +67,7 @@ def run_game(choice):
             if DEBUG_EVENTS and ev.type in (pygame.MOUSEBUTTONDOWN, pygame.KEYDOWN):
                 print("EVENT:", ev)
 
+            # Block human input during AI turn, but still allow menu button on game over
             if single_player and game.current != HUMAN_PLAYER and game.phase != Phase.GAME_OVER:
                 if DEBUG_AI and ev.type == pygame.MOUSEBUTTONDOWN:
                     print("Human clicked during AI turn (ignored).")
@@ -66,10 +77,11 @@ def run_game(choice):
             if result == "MENU":
                 return "MENU"
 
-        # draw before AI move
-        renderer.draw(game)
+        # Draw board/UI every frame
+        renderer.draw(game, single_player=single_player, human_player=HUMAN_PLAYER)
         pygame.display.flip()
 
+        # Run AI once when pending
         if single_player and ai_pending and game.current == AI_PLAYER and game.phase == Phase.MOVE_PAWN:
             ai_pending = False
             ai_debug_once = False
@@ -116,8 +128,6 @@ def run_game(choice):
                 print("B pawns:", game.pawns["B"])
                 print("occupied count:", len(game.occupied))
                 return "MENU"
-
-        clock.tick(60)
 
 
 def main():

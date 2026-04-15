@@ -36,7 +36,7 @@ class InputHandler:
         return best
 
     def hit_test_menu_button(self, mx: float, my: float) -> bool:
-        bx, by, bw, bh = 14, 140, 200, 40
+        bx, by, bw, bh = 14, 200, 200, 40
         return bx <= mx <= bx + bw and by <= my <= by + bh
 
     def handle_event(self, ev: pygame.event.Event):
