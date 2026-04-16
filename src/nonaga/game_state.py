@@ -137,8 +137,6 @@ class NonagaGame:
         out: Set[str] = set()
 
         for cell in self.occupied:
-            if cell == self.blocked:
-                continue
             if cell in pawnset:
                 continue
             q, r = parse_key(cell)
@@ -209,7 +207,7 @@ class NonagaGame:
         return len(seen) == 3
 
     def end_turn_after_placement(self, placed_key: str):
-        self.blocked = placed_key
+        self.blocked = None
         self.removable = None
         self.selected_idx = None
         self.valid_moves = []
