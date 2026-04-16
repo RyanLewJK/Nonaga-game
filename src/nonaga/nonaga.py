@@ -145,7 +145,6 @@ def run_game(choice):
                         "place:", place_key
                     )
 
-                    game.snapshot()
                     game.pawns[AI_PLAYER][pawn_i] = target
                     game.occupied.remove(rem_key)
                     game.occupied.add(place_key)

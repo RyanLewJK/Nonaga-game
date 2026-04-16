@@ -58,20 +58,21 @@ class NonagaGame:
         if len(self.history) > 200:
             self.history.pop(0)
 
-    def undo(self):
-        if not self.history:
+    def cancel_selection(self):
+    # Cancel pawn selection
+        if self.phase == Phase.MOVE_PAWN and self.selected_idx is not None:
+            self.selected_idx = None
+            self.valid_moves = []
             return
-        h = self.history.pop()
-        self.occupied = set(h.occupied)
-        self.pawns = {"A": [tuple(p) for p in h.pawns["A"]], "B": [tuple(p) for p in h.pawns["B"]]}
-        self.current = h.current
-        self.phase = h.phase
-        self.selected_idx = h.selected_idx
-        self.removable = h.removable
-        self.blocked = h.blocked
-        self.time_left = dict(h.time_left)
-        self.winner = h.winner
-        self.recompute()
+
+        # Cancel removed-cell choice and go back to remove phase
+        if self.phase == Phase.PICK_PLACE and self.removable is not None:
+            self.occupied.add(self.removable)
+            self.phase = Phase.PICK_REMOVE
+            self.valid_placements = set()
+            self.valid_removals = self.compute_valid_removals()
+            self.removable = None
+            return
 
     def reset(self):
         self.history.clear()
@@ -243,7 +244,6 @@ class NonagaGame:
             if self.selected_idx is not None:
                 target = parse_key(cell_key)
                 if target in self.valid_moves:
-                    self.snapshot()
                     self.pawns[self.current][self.selected_idx] = target
                     self.selected_idx = None
                     self.valid_moves = []
@@ -253,7 +253,6 @@ class NonagaGame:
 
         elif self.phase == Phase.PICK_REMOVE:
             if cell_key in self.valid_removals:
-                self.snapshot()
                 self.occupied.remove(cell_key)
                 self.removable = cell_key
                 self.valid_placements = self.compute_valid_placements()
@@ -269,7 +268,6 @@ class NonagaGame:
             return
         cell_key = k(pos)
         if cell_key in self.valid_placements:
-            self.snapshot()
             self.occupied.add(cell_key)
             self.end_turn_after_placement(cell_key)
 

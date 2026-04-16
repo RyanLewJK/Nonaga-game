@@ -43,8 +43,8 @@ class InputHandler:
         if ev.type == pygame.KEYDOWN:
             if ev.key == pygame.K_r:
                 self.game.reset()
-            elif ev.key == pygame.K_z and (pygame.key.get_mods() & pygame.KMOD_CTRL):
-                self.game.undo()
+            elif ev.key == pygame.K_ESCAPE:
+                self.game.cancel_selection()
 
         elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
             mx, my = ev.pos

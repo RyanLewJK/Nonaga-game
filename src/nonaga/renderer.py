@@ -16,6 +16,21 @@ class Renderer:
         self.font = pygame.font.SysFont(None, 22)
         self.big = pygame.font.SysFont(None, 28)
 
+        self.pawn_img_A = pygame.image.load("assets/img/disc_A.png").convert_alpha()
+        self.pawn_img_B = pygame.image.load("assets/img/disc_B.png").convert_alpha()
+        self.cell_img = pygame.image.load("assets/img/cell.png").convert_alpha()
+
+        self.cell_img = pygame.transform.smoothscale(
+            self.cell_img, (int(DISC_R * 2.2), int(DISC_R * 2.2))
+        )
+
+        self.pawn_img_A = pygame.transform.smoothscale(
+            self.pawn_img_A, (int(PAWN_R * 3.5), int(PAWN_R * 3.5))
+        )
+        self.pawn_img_B = pygame.transform.smoothscale(
+            self.pawn_img_B, (int(PAWN_R * 3.5), int(PAWN_R * 3.5))
+        )
+
     def player_label(self, player: str, single_player=False, human_player="A") -> str:
         if not single_player:
             return f"Player {player}"
@@ -28,22 +43,19 @@ class Renderer:
     def draw(self, game, single_player=False, human_player="A"):
         self.screen.fill(BG)
 
-        # discs
+        # board discs
         for cell in game.occupied:
             pos = parse_key(cell)
             x, y = axial_to_pixel(pos, HEX_SIZE, ORIGIN)
 
-            fill = DISC_FILL
-            stroke = DISC_STROKE
+            rect = self.cell_img.get_rect(center=(int(x), int(y)))
+            self.screen.blit(self.cell_img, rect)
 
             if game.phase == Phase.PICK_REMOVE and cell in game.valid_removals:
-                fill = REM_FILL
-                stroke = REM_STROKE
-            if game.blocked == cell:
-                stroke = BLOCKED_STROKE
+                pygame.draw.circle(self.screen, REM_STROKE, (int(x), int(y)), DISC_R, 3)
 
-            pygame.draw.circle(self.screen, fill, (int(x), int(y)), DISC_R)
-            pygame.draw.circle(self.screen, stroke, (int(x), int(y)), DISC_R, 2)
+            if game.blocked == cell:
+                pygame.draw.circle(self.screen, BLOCKED_STROKE, (int(x), int(y)), DISC_R, 3)
 
         # placement dots
         if game.phase == Phase.PICK_PLACE:
@@ -64,23 +76,21 @@ class Renderer:
         def draw_pawns(player: str, color: Tuple[int, int, int]):
             for idx, pos in enumerate(game.pawns[player]):
                 x, y = axial_to_pixel(pos, HEX_SIZE, ORIGIN)
+
                 ring = None
                 if player == game.current and idx == game.selected_idx and game.phase == Phase.MOVE_PAWN:
                     ring = SELECT_RING
 
-                pygame.draw.circle(self.screen, color, (int(x), int(y)), PAWN_R)
-                pygame.draw.circle(self.screen, (10, 10, 10), (int(x), int(y)), PAWN_R, 2)
-                if ring:
-                    pygame.draw.circle(self.screen, ring, (int(x), int(y)), PAWN_R + 3, 3)
+                img = self.pawn_img_A if player == "A" else self.pawn_img_B
+                rect = img.get_rect(center=(int(x), int(y)))
+                self.screen.blit(img, rect)
 
-                label = self.font.render(str(idx + 1), True, (0, 0, 0))
-                rect = label.get_rect(center=(int(x), int(y)))
-                self.screen.blit(label, rect)
+                if ring:
+                    pygame.draw.circle(self.screen, ring, (int(x), int(y)), PAWN_R + 6, 3)
 
         draw_pawns("A", A_COLOR)
         draw_pawns("B", B_COLOR)
 
-        # UI text
         phase_text = {
             Phase.MOVE_PAWN: "Move a pawn (click pawn, then destination)",
             Phase.PICK_REMOVE: "Remove an empty edge disc (click highlighted disc)",
@@ -92,7 +102,7 @@ class Renderer:
         a_label = self.player_label("A", single_player, human_player)
         b_label = self.player_label("B", single_player, human_player)
 
-        self.draw_text("Nonaga (Pygame)", 14, 12, self.big)
+        self.draw_text("Nonaga", 14, 12, self.big)
         self.draw_text(f"Turn: {current_label}", 14, 44, self.font)
         self.draw_text(f"Phase: {phase_text}", 14, 66, self.font)
         self.draw_text(f"{a_label} Time: {game.format_time('A')}", 14, 88, self.font)
@@ -101,7 +111,7 @@ class Renderer:
         if game.blocked:
             self.draw_text(f"Blocked disc this turn: {game.blocked}", 14, 132, self.font, UI_MUTED)
 
-        self.draw_text("Keys: R = reset, Ctrl+Z = undo", 14, SCREEN_H - 28, self.font, UI_MUTED)
+        self.draw_text("Keys: R = reset, Esc = cancel selection", 14, SCREEN_H - 28, self.font, UI_MUTED)
 
         if game.phase == Phase.GAME_OVER:
             winner = game.winner if game.winner is not None else game.current
