@@ -5,7 +5,7 @@ from src.nonaga.game_state import Phase
 from src.nonaga.constants import (
     BG, DISC_FILL, DISC_STROKE, REM_FILL, REM_STROKE, BLOCKED_STROKE,
     PLACE_FILL, PLACE_STROKE, MOVE_FILL, MOVE_STROKE,
-    A_COLOR, B_COLOR, SELECT_RING,
+    A_COLOR, B_COLOR, SCREEN_W, SELECT_RING,
     HEX_SIZE, DISC_R, PAWN_R, ORIGIN,
     UI_TEXT, UI_MUTED, SCREEN_H
 )
@@ -16,12 +16,12 @@ class Renderer:
         self.font = pygame.font.SysFont(None, 22)
         self.big = pygame.font.SysFont(None, 28)
 
-        self.pawn_img_A = pygame.image.load("assets/img/disc_A.png").convert_alpha()
-        self.pawn_img_B = pygame.image.load("assets/img/disc_B.png").convert_alpha()
+        self.pawn_img_A = pygame.image.load("assets/img/disc_A_3.png").convert_alpha()
+        self.pawn_img_B = pygame.image.load("assets/img/disc_B_3.png").convert_alpha()
         self.cell_img = pygame.image.load("assets/img/cell.png").convert_alpha()
 
         self.cell_img = pygame.transform.smoothscale(
-            self.cell_img, (int(DISC_R * 2.2), int(DISC_R * 2.2))
+            self.cell_img, (int(DISC_R * 1.9), int(DISC_R * 1.9))
         )
 
         self.pawn_img_A = pygame.transform.smoothscale(
@@ -30,6 +30,33 @@ class Renderer:
         self.pawn_img_B = pygame.transform.smoothscale(
             self.pawn_img_B, (int(PAWN_R * 3.5), int(PAWN_R * 3.5))
         )
+
+        self.turn_red = pygame.image.load("assets/img/red_turn.png").convert_alpha()
+        self.turn_blue = pygame.image.load("assets/img/blue_turn.png").convert_alpha()
+
+        self.turn_red = pygame.transform.smoothscale(self.turn_red, (120, 80))
+        self.turn_blue = pygame.transform.smoothscale(self.turn_blue, (120, 80))
+
+        self.win_red_img = pygame.image.load("assets/img/red_win.png").convert_alpha()
+        self.win_blue_img = pygame.image.load("assets/img/blue_win.png").convert_alpha()
+        self.you_win_img = pygame.image.load("assets/img/you_win.png").convert_alpha()
+        self.you_lose_img = pygame.image.load("assets/img/you_lose.png").convert_alpha()
+
+        self.win_red_img = pygame.transform.smoothscale(self.win_red_img, (300, 100))
+        self.win_blue_img = pygame.transform.smoothscale(self.win_blue_img, (300, 100))
+
+        self.you_win_img = pygame.transform.smoothscale(self.you_win_img, (300, 100))
+        self.you_lose_img = pygame.transform.smoothscale(self.you_lose_img, (300, 100))
+
+        self.btn_menu_img = pygame.image.load("assets/img/back_to_menu.png").convert_alpha()
+        self.btn_menu_hover_img = pygame.image.load("assets/img/back_to_menu_hover.png").convert_alpha()
+        self.btn_restart_img = pygame.image.load("assets/img/btn_restart.png").convert_alpha()
+        self.btn_restart_hover_img = pygame.image.load("assets/img/btn_restart_hover.png").convert_alpha()
+
+        self.btn_menu_img = pygame.transform.smoothscale(self.btn_menu_img, (140, 50))
+        self.btn_restart_img = pygame.transform.smoothscale(self.btn_restart_img, (140, 50))
+        self.btn_menu_hover_img = pygame.transform.smoothscale(self.btn_menu_hover_img, (140, 50))
+        self.btn_restart_hover_img = pygame.transform.smoothscale(self.btn_restart_hover_img, (140, 50))
 
     def player_label(self, player: str, single_player=False, human_player="A") -> str:
         if not single_player:
@@ -40,8 +67,53 @@ class Renderer:
         surf = fnt.render(msg, True, color)
         self.screen.blit(surf, (x, y))
 
+    def draw_pause_menu(self):
+        overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.screen.blit(overlay, (0, 0))
+
+        panel_w, panel_h = 320, 220
+        panel_x = (SCREEN_W - panel_w) // 2
+        panel_y = (SCREEN_H - panel_h) // 2
+        panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+
+        pygame.draw.rect(self.screen, (24, 24, 24), panel_rect, border_radius=20)
+        pygame.draw.rect(self.screen, (180, 180, 180), panel_rect, 2, border_radius=20)
+
+        title = self.big.render("Paused", True, (245, 245, 245))
+        title_rect = title.get_rect(center=(panel_rect.centerx, panel_rect.y + 32))
+        self.screen.blit(title, title_rect)
+
+        btn_w, btn_h = 180, 42
+        gap = 14
+        start_x = panel_x + (panel_w - btn_w) // 2
+        start_y = panel_y + 70
+
+        mx, my = pygame.mouse.get_pos()
+
+        buttons = [
+            ("Resume", pygame.Rect(start_x, start_y, btn_w, btn_h)),
+            ("Settings", pygame.Rect(start_x, start_y + btn_h + gap, btn_w, btn_h)),
+            ("Main Menu", pygame.Rect(start_x, start_y + 2 * (btn_h + gap), btn_w, btn_h)),
+        ]
+
+        for text, rect in buttons:
+            hover = rect.collidepoint(mx, my)
+            fill = (90, 90, 90) if hover else (60, 60, 60)
+
+            pygame.draw.rect(self.screen, fill, rect, border_radius=12)
+            pygame.draw.rect(self.screen, (220, 220, 220), rect, 2, border_radius=12)
+
+            label = self.font.render(text, True, (255, 255, 255))
+            self.screen.blit(label, label.get_rect(center=rect.center))
+
     def draw(self, game, single_player=False, human_player="A"):
         self.screen.fill(BG)
+
+        if game.phase != Phase.GAME_OVER:
+            turn_img = self.turn_red if game.current == "A" else self.turn_blue
+            turn_rect = turn_img.get_rect(topright=(self.screen.get_width() - 20, 20))
+            self.screen.blit(turn_img, turn_rect)
 
         # board discs
         for cell in game.occupied:
@@ -92,36 +164,66 @@ class Renderer:
         draw_pawns("B", B_COLOR)
 
         phase_text = {
-            Phase.MOVE_PAWN: "Move a pawn (click pawn, then destination)",
-            Phase.PICK_REMOVE: "Remove an empty edge disc (click highlighted disc)",
-            Phase.PICK_PLACE: "Place disc (click a highlighted dot; must touch ≥2 discs)",
+            Phase.MOVE_PAWN: "Move a pawn",
+            Phase.PICK_REMOVE: "Remove an edge disc",
+            Phase.PICK_PLACE: "Place the disc",
             Phase.GAME_OVER: "Game over",
         }[game.phase]
 
-        current_label = self.player_label(game.current, single_player, human_player)
-        a_label = self.player_label("A", single_player, human_player)
-        b_label = self.player_label("B", single_player, human_player)
-
-        self.draw_text("Nonaga", 14, 12, self.big)
-        self.draw_text(f"Turn: {current_label}", 14, 44, self.font)
-        self.draw_text(f"Phase: {phase_text}", 14, 66, self.font)
-        self.draw_text(f"{a_label} Time: {game.format_time('A')}", 14, 88, self.font)
-        self.draw_text(f"{b_label} Time: {game.format_time('B')}", 14, 110, self.font)
+        # Top-left info block
+        self.draw_text(f"Phase: {phase_text}", 14, 20, self.big, (245, 245, 245))
+        self.draw_text("Red Time", 14, 58, self.font, (230, 70, 70))
+        self.draw_text(game.format_time("A"), 140, 58, self.font, UI_TEXT)
+        self.draw_text("Blue Time", 14, 84, self.font, (70, 140, 255))
+        self.draw_text(game.format_time("B"), 140, 84, self.font, UI_TEXT)
 
         if game.blocked:
-            self.draw_text(f"Blocked disc this turn: {game.blocked}", 14, 132, self.font, UI_MUTED)
+            self.draw_text(f"Blocked: {game.blocked}", 14, 110, self.font, UI_MUTED)
 
-        self.draw_text("Keys: R = reset, Esc = cancel selection", 14, SCREEN_H - 28, self.font, UI_MUTED)
+        self.draw_text("R: Restart   X: Cancel   Esc: Menu", 14, SCREEN_H - 28, self.font, UI_MUTED)
 
         if game.phase == Phase.GAME_OVER:
+
+            # dark overlay
+            overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 200))
+            self.screen.blit(overlay, (0, 0))
+
+            # centered popup panel
+            panel_w, panel_h = 360, 200
+            panel_x = (SCREEN_W - panel_w) // 2
+            panel_y = (SCREEN_H - panel_h) // 2
+            panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+
+            pygame.draw.rect(self.screen, (24, 24, 24), panel_rect, border_radius=20)
+            pygame.draw.rect(self.screen, (180, 180, 180), panel_rect, 2, border_radius=20)
+
+            # winner image
             winner = game.winner if game.winner is not None else game.current
-            winner_label = self.player_label(winner, single_player, human_player)
-            self.draw_text(f"{winner_label} WINS!", 14, 160, self.big, (255, 230, 150))
+            if single_player:
+                if winner == human_player:
+                    win_img = self.you_win_img
+                else:
+                    win_img = self.you_lose_img
+            else:
+                win_img = self.win_red_img if winner == "A" else self.win_blue_img
+            win_rect = win_img.get_rect(center=(panel_rect.centerx, panel_rect.centery - 30))
+            self.screen.blit(win_img, win_rect)
 
-            bx, by, bw, bh = 14, 200, 200, 40
-            pygame.draw.rect(self.screen, (80, 80, 80), (bx, by, bw, bh))
-            pygame.draw.rect(self.screen, (200, 200, 200), (bx, by, bw, bh), 2)
+            # two buttons side by side
+            btn_w, btn_h = 150, 50
+            gap = 20
+            total_w = btn_w * 2 + gap
+            start_x = panel_rect.centerx - total_w // 2
+            btn_y = panel_rect.bottom - 75
 
-            label = self.font.render("Back to Menu", True, (255, 255, 255))
-            rect = label.get_rect(center=(bx + bw // 2, by + bh // 2))
-            self.screen.blit(label, rect)
+            menu_rect = pygame.Rect(start_x, btn_y, btn_w, btn_h)
+            restart_rect = pygame.Rect(start_x + btn_w + gap, btn_y, btn_w, btn_h)
+
+            mx, my = pygame.mouse.get_pos()
+
+            menu_img = self.btn_menu_hover_img if menu_rect.collidepoint(mx, my) else self.btn_menu_img
+            restart_img = self.btn_restart_hover_img if restart_rect.collidepoint(mx, my) else self.btn_restart_img
+
+            self.screen.blit(menu_img, menu_rect)
+            self.screen.blit(restart_img, restart_rect)

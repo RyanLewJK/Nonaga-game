@@ -1,6 +1,6 @@
 import pygame
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional
 
 # -------- Menu results --------
 @dataclass
@@ -27,6 +27,24 @@ class Button:
         label = font.render(self.text, True, txt)
         surf.blit(label, label.get_rect(center=self.rect.center))
 
+class ImageButton:
+    def __init__(self, rect: pygame.Rect, img_path: str, hover_img_path: str):
+        self.rect = rect
+        self.hover = False
+
+        self.img = pygame.image.load(img_path).convert_alpha()
+        self.hover_img = pygame.image.load(hover_img_path).convert_alpha()
+
+        self.img = pygame.transform.smoothscale(self.img, (rect.w, rect.h))
+        self.hover_img = pygame.transform.smoothscale(self.hover_img, (rect.w, rect.h))
+
+    def handle(self, mouse_pos, mouse_down) -> bool:
+        self.hover = self.rect.collidepoint(mouse_pos)
+        return self.hover and mouse_down
+
+    def draw(self, surf):
+        surf.blit(self.hover_img if self.hover else self.img, self.rect)
+
 
 class ToggleGroup:
     """Row of options; click to select."""
@@ -39,7 +57,6 @@ class ToggleGroup:
         title = small_font.render(self.label, True, (220, 220, 220))
         surf.blit(title, (x, y))
 
-        # layout buttons across width
         pad = 10
         btn_w = (w - pad * (len(self.options) - 1)) // len(self.options)
         btn_h = h
@@ -70,8 +87,10 @@ class ToggleGroup:
 # -------- Menu screens --------
 class MenuUI:
     MAIN = "MAIN"
+    PLAY = "PLAY"
     SINGLE = "SINGLE"
     HELP = "HELP"
+    SETTINGS = "SETTINGS"
 
     def __init__(self, screen: pygame.Surface):
         self.screen = screen
@@ -85,31 +104,60 @@ class MenuUI:
         self.state = MenuUI.MAIN
         self.choice = MenuChoice(mode="LOCAL")
 
+        self.logo = pygame.image.load("assets/img/logo_2.png").convert_alpha()
+        self.logo = pygame.transform.smoothscale(self.logo, (300, 150))
+
         # theme
         self.bg = (15, 15, 15)
         self.panel = (22, 22, 22)
         self.panel_border = (55, 55, 55)
         self.btn_colors = ((40, 40, 40), (60, 60, 60), (120, 120, 120), (245, 245, 245))
 
-        # main menu buttons (centered)
-        bw, bh = 320, 54
+        # button sizing
+        bw, bh = 280, 65
         cx = self.w // 2 - bw // 2
         top = int(self.h * 0.42)
         gap = 14
 
-        self.btn_play = Button(pygame.Rect(cx, top + 0*(bh+gap), bw, bh), "Play (2 Players)")
-        self.btn_single = Button(pygame.Rect(cx, top + 1*(bh+gap), bw, bh), "Single Player")
-        self.btn_help = Button(pygame.Rect(cx, top + 2*(bh+gap), bw, bh), "How to Play")
-        self.btn_quit = Button(pygame.Rect(cx, top + 3*(bh+gap), bw, bh), "Quit")
+        self.btn_play = ImageButton(
+            pygame.Rect(cx, top + 0*(bh+gap), bw, bh),
+            "assets/img/play_btn.png",
+            "assets/img/play_btn_hover.png"
+        )
 
-        # single player controls
+        self.btn_help = ImageButton(
+            pygame.Rect(cx, top + 1*(bh+gap), bw, bh),
+            "assets/img/help_btn.png",
+            "assets/img/help_btn_hover.png"
+        )
+
+        self.btn_settings = ImageButton(
+            pygame.Rect(cx, top + 2*(bh+gap), bw, bh),
+            "assets/img/settings_btn.png",
+            "assets/img/settings_btn_hover.png"
+        )
+
+        self.btn_exit = ImageButton(
+            pygame.Rect(cx, top + 3*(bh+gap), bw, bh),
+            "assets/img/exit_btn.png",
+            "assets/img/exit_btn_hover.png"
+        )
+
+        # PLAY SUBMENU
+        self.btn_single = Button(pygame.Rect(cx, top + 0*(bh+gap), bw, bh), "Single Player")
+        self.btn_double = Button(pygame.Rect(cx, top + 1*(bh+gap), bw, bh), "Double Player")
+        self.btn_back_play = Button(pygame.Rect(24, self.h - 70, 140, 46), "Back")
+
+        # SINGLE PLAYER SCREEN
         self.side_group = ToggleGroup("Side", ["Red (A)", "Blue (B)"], 0)
-
         self.btn_start = Button(pygame.Rect(cx, int(self.h*0.75), bw, bh), "Start")
         self.btn_back = Button(pygame.Rect(24, self.h - 70, 140, 46), "Back")
 
-        # help
+        # HELP
         self.btn_back2 = Button(pygame.Rect(24, self.h - 70, 140, 46), "Back")
+
+        # SETTINGS
+        self.btn_back3 = Button(pygame.Rect(24, self.h - 70, 140, 46), "Back")
 
     def _panel(self, rect: pygame.Rect):
         pygame.draw.rect(self.screen, self.panel, rect, border_radius=18)
@@ -120,11 +168,17 @@ class MenuUI:
         self.screen.blit(surf, surf.get_rect(center=(self.w//2, y)))
 
     def draw_main(self, mouse_pos, mouse_down) -> Optional[str]:
-        self._draw_centered("NONAGA", self.title_font, int(self.h * 0.18))
-        self._draw_centered("Shift the board. Connect your 3 pawns.", self.h2_font, int(self.h * 0.26), (200, 200, 200))
+        logo_rect = self.logo.get_rect(center=(self.w // 2, int(self.h * 0.18)))
+        self.screen.blit(self.logo, logo_rect)
 
-        # panel behind buttons (auto-fit to all buttons)
-        buttons = [self.btn_play, self.btn_single, self.btn_help, self.btn_quit]
+        self._draw_centered(
+            "Shift the board. Connect your 3 pawns.",
+            self.h2_font,
+            int(self.h * 0.30),
+            (200, 200, 200)
+        )
+
+        buttons = [self.btn_play, self.btn_help, self.btn_settings, self.btn_exit]
         left   = min(b.rect.left for b in buttons)
         top    = min(b.rect.top for b in buttons)
         right  = max(b.rect.right for b in buttons)
@@ -133,22 +187,48 @@ class MenuUI:
         panel_rect = pygame.Rect(left, top, right - left, bottom - top).inflate(80, 50)
         self._panel(panel_rect)
 
-
         if self.btn_play.handle(mouse_pos, mouse_down):
-            return "PLAY_LOCAL"
-        if self.btn_single.handle(mouse_pos, mouse_down):
-            self.state = MenuUI.SINGLE
+            self.state = MenuUI.PLAY
         if self.btn_help.handle(mouse_pos, mouse_down):
             self.state = MenuUI.HELP
-        if self.btn_quit.handle(mouse_pos, mouse_down):
+        if self.btn_settings.handle(mouse_pos, mouse_down):
+            self.state = MenuUI.SETTINGS
+        if self.btn_exit.handle(mouse_pos, mouse_down):
             return "QUIT"
 
-        for b in [self.btn_play, self.btn_single, self.btn_help, self.btn_quit]:
-            b.draw(self.screen, self.font, self.btn_colors)
+        for b in buttons:
+            b.draw(self.screen)
 
-        footer = "Tip: R = reset • Ctrl+Z = undo"
-        self.screen.blit(self.small.render(footer, True, (170, 170, 170)),
-                         (self.w//2 - 130, self.h - 32))
+        footer = "Based on the classic board game"
+        self.screen.blit(
+            self.small.render(footer, True, (170, 170, 170)),
+            (self.w//2 - 140, self.h - 32)
+        )
+        return None
+
+    def draw_play_menu(self, mouse_pos, mouse_down) -> Optional[str]:
+        self._draw_centered("Play", self.title_font, int(self.h * 0.16))
+        self._draw_centered("Choose a mode", self.h2_font, int(self.h * 0.28), (200, 200, 200))
+
+        buttons = [self.btn_single, self.btn_double]
+        left   = min(b.rect.left for b in buttons)
+        top    = min(b.rect.top for b in buttons)
+        right  = max(b.rect.right for b in buttons)
+        bottom = max(b.rect.bottom for b in buttons)
+
+        panel_rect = pygame.Rect(left, top, right - left, bottom - top).inflate(80, 50)
+        self._panel(panel_rect)
+
+        if self.btn_single.handle(mouse_pos, mouse_down):
+            self.state = MenuUI.SINGLE
+        if self.btn_double.handle(mouse_pos, mouse_down):
+            return "PLAY_LOCAL"
+        if self.btn_back_play.handle(mouse_pos, mouse_down):
+            self.state = MenuUI.MAIN
+
+        self.btn_single.draw(self.screen, self.font, self.btn_colors)
+        self.btn_double.draw(self.screen, self.font, self.btn_colors)
+        self.btn_back_play.draw(self.screen, self.font, self.btn_colors)
         return None
 
     def draw_single(self, mouse_pos, mouse_down) -> Optional[str]:
@@ -162,14 +242,13 @@ class MenuUI:
         y = panel.y + 22
         self.side_group.draw(self.screen, self.font, self.small, x, y, panel.w - 48, 46, mouse_pos, mouse_down)
 
-        # update choice from toggle
         self.choice.mode = "SINGLE"
         self.choice.side = "A" if self.side_group.value().startswith("Red") else "B"
 
         if self.btn_start.handle(mouse_pos, mouse_down):
             return "START_SINGLE"
         if self.btn_back.handle(mouse_pos, mouse_down):
-            self.state = MenuUI.MAIN
+            self.state = MenuUI.PLAY
 
         self.btn_start.draw(self.screen, self.font, self.btn_colors)
         self.btn_back.draw(self.screen, self.font, self.btn_colors)
@@ -204,8 +283,20 @@ class MenuUI:
         self.btn_back2.draw(self.screen, self.font, self.btn_colors)
         return None
 
+    def draw_settings(self, mouse_pos, mouse_down) -> Optional[str]:
+        self._draw_centered("Settings", self.title_font, int(self.h * 0.16))
+        panel = pygame.Rect(self.w//2 - 300, int(self.h*0.30), 600, 220)
+        self._panel(panel)
+
+        text = self.h2_font.render("Settings will be added later.", True, (210, 210, 210))
+        self.screen.blit(text, text.get_rect(center=panel.center))
+
+        if self.btn_back3.handle(mouse_pos, mouse_down):
+            self.state = MenuUI.MAIN
+        self.btn_back3.draw(self.screen, self.font, self.btn_colors)
+        return None
+
     def run(self, clock: pygame.time.Clock) -> Optional[MenuChoice]:
-        """Blocks until user chooses a mode or quits. Returns MenuChoice or None if quit."""
         while True:
             mouse_pos = pygame.mouse.get_pos()
             mouse_down = False
@@ -214,10 +305,12 @@ class MenuUI:
                 if ev.type == pygame.QUIT:
                     return None
                 if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
-                    # ESC always goes back, or quits from main
                     if self.state == MenuUI.MAIN:
                         return None
-                    self.state = MenuUI.MAIN
+                    elif self.state in (MenuUI.PLAY, MenuUI.HELP, MenuUI.SETTINGS):
+                        self.state = MenuUI.MAIN
+                    elif self.state == MenuUI.SINGLE:
+                        self.state = MenuUI.PLAY
                 if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                     mouse_down = True
 
@@ -226,10 +319,14 @@ class MenuUI:
             action = None
             if self.state == MenuUI.MAIN:
                 action = self.draw_main(mouse_pos, mouse_down)
+            elif self.state == MenuUI.PLAY:
+                action = self.draw_play_menu(mouse_pos, mouse_down)
             elif self.state == MenuUI.SINGLE:
                 action = self.draw_single(mouse_pos, mouse_down)
             elif self.state == MenuUI.HELP:
                 action = self.draw_help(mouse_pos, mouse_down)
+            elif self.state == MenuUI.SETTINGS:
+                action = self.draw_settings(mouse_pos, mouse_down)
 
             pygame.display.flip()
             clock.tick(60)
