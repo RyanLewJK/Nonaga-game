@@ -5,8 +5,9 @@ from typing import Optional
 # -------- Menu results --------
 @dataclass
 class MenuChoice:
-    mode: str                 # "LOCAL" or "SINGLE"
-    side: str = "A"           # "A" (Red) or "B" (Blue)
+    mode: str                  # "LOCAL" or "SINGLE"
+    side: str = "A"            # "A" (Red) or "B" (Blue)
+    variant: str = "CLASSIC"   # "CLASSIC", "BLITZ", "MEGA", "DEFENSE"
 
 # -------- Simple UI widgets --------
 class Button:
@@ -82,12 +83,66 @@ class ToggleGroup:
 
     def value(self):
         return self.options[self.selected]
+    
 
+class MenuCard:
+    def __init__(self, rect: pygame.Rect, title: str, description: list[str], image=None):
+        self.rect = rect
+        self.title = title
+        self.description = description
+        self.image = image
+        self.hover = False
+
+    def handle(self, mouse_pos, mouse_down) -> bool:
+        self.hover = self.rect.collidepoint(mouse_pos)
+        return self.hover and mouse_down
+
+    def draw(self, surf, title_font, text_font):
+        scale = 1.06 if self.hover else 1.0
+
+        title_color = (255, 255, 255) if self.hover else (235, 235, 235)
+        text_color = (245, 245, 245) if self.hover else (200, 200, 200)
+
+        center_x = self.rect.centerx
+        base_y = self.rect.y
+
+        # title
+        title_surf = title_font.render(self.title, True, title_color)
+        if self.hover:
+            title_surf = pygame.transform.smoothscale(
+                title_surf,
+                (int(title_surf.get_width() * scale), int(title_surf.get_height() * scale))
+            )
+        surf.blit(title_surf, title_surf.get_rect(midtop=(center_x, base_y + 10)))
+
+        # image
+        if self.image:
+            img = self.image
+            if self.hover:
+                img = pygame.transform.smoothscale(
+                    self.image,
+                    (int(self.image.get_width() * scale), int(self.image.get_height() * scale))
+                )
+            img_rect = img.get_rect(center=(center_x, base_y + 120))
+            surf.blit(img, img_rect)
+
+        # description
+        start_y = base_y + 210
+        for i, line in enumerate(self.description):
+            line_surf = text_font.render(line, True, text_color)
+            if self.hover:
+                line_surf = pygame.transform.smoothscale(
+                    line_surf,
+                    (int(line_surf.get_width() * 1.03), int(line_surf.get_height() * 1.03))
+                )
+            surf.blit(line_surf, line_surf.get_rect(center=(center_x, start_y + i * 34)))
 
 # -------- Menu screens --------
 class MenuUI:
     MAIN = "MAIN"
     PLAY = "PLAY"
+    CLASSIC = "CLASSIC"
+    MODES = "MODES"
     SINGLE = "SINGLE"
     HELP = "HELP"
     SETTINGS = "SETTINGS"
@@ -106,6 +161,9 @@ class MenuUI:
 
         self.logo = pygame.image.load("assets/img/logo_2.png").convert_alpha()
         self.logo = pygame.transform.smoothscale(self.logo, (300, 150))
+
+        self.card_image = pygame.image.load("assets/img/logo_2.png").convert_alpha()
+        self.card_image = pygame.transform.smoothscale(self.card_image, (170, 120))
 
         # theme
         self.bg = (15, 15, 15)
@@ -143,10 +201,74 @@ class MenuUI:
             "assets/img/exit_btn_hover.png"
         )
 
-        # PLAY SUBMENU
-        self.btn_single = Button(pygame.Rect(cx, top + 0*(bh+gap), bw, bh), "Single Player")
-        self.btn_double = Button(pygame.Rect(cx, top + 1*(bh+gap), bw, bh), "Double Player")
+        # shared back buttons
         self.btn_back_play = Button(pygame.Rect(24, self.h - 70, 140, 46), "Back")
+        self.btn_back_classic = Button(pygame.Rect(24, self.h - 70, 140, 46), "Back")
+        self.btn_back_modes = Button(pygame.Rect(24, self.h - 70, 140, 46), "Back")
+
+        # card layout for 2-column screens
+        card_w, card_h = 260, 300
+        left_x = 80
+        right_x = self.w - 80 - card_w
+        card_y = 140
+
+        # PLAY screen cards
+        self.card_classic = MenuCard(
+            pygame.Rect(left_x, card_y, card_w, card_h),
+            "CLASSIC",
+            ["Standard Nonaga", "Play the original rules"],
+            self.card_image
+        )
+
+        self.card_modes = MenuCard(
+            pygame.Rect(right_x, card_y, card_w, card_h),
+            "MODES",
+            ["Special variants", "New ways to play"],
+            self.card_image
+        )
+
+        # CLASSIC screen cards
+        self.card_one_player = MenuCard(
+            pygame.Rect(left_x, card_y, card_w, card_h),
+            "1 PLAYER",
+            ["Play against AI"],
+            self.card_image
+        )
+
+        self.card_two_player = MenuCard(
+            pygame.Rect(right_x, card_y, card_w, card_h),
+            "2 PLAYER",
+            ["Play locally with a friend"],
+            self.card_image
+        )
+
+        # MODES screen cards
+        small_w, small_h = 220, 280
+        gap3 = 50
+        total_w = 3 * small_w + 2 * gap3
+        start_x = (self.w - total_w) // 2
+        modes_y = 150
+
+        self.card_blitz = MenuCard(
+            pygame.Rect(start_x, modes_y, small_w, small_h),
+            "BLITZ",
+            ["Fast-paced mode", "Quick matches"],
+            self.card_image
+        )
+
+        self.card_mega = MenuCard(
+            pygame.Rect(start_x + small_w + gap3, modes_y, small_w, small_h),
+            "MEGA BOARD",
+            ["Larger board", "More room to plan"],
+            self.card_image
+        )
+
+        self.card_defense = MenuCard(
+            pygame.Rect(start_x + 2 * (small_w + gap3), modes_y, small_w, small_h),
+            "DEFENSE",
+            ["Protect key spaces", "New challenge"],
+            self.card_image
+        )
 
         # SINGLE PLAYER SCREEN
         self.side_group = ToggleGroup("Side", ["Red (A)", "Blue (B)"], 0)
@@ -207,28 +329,86 @@ class MenuUI:
         return None
 
     def draw_play_menu(self, mouse_pos, mouse_down) -> Optional[str]:
-        self._draw_centered("Play", self.title_font, int(self.h * 0.16))
-        self._draw_centered("Choose a mode", self.h2_font, int(self.h * 0.28), (200, 200, 200))
+        self._draw_centered("PLAY", self.title_font, 70)
 
-        buttons = [self.btn_single, self.btn_double]
-        left   = min(b.rect.left for b in buttons)
-        top    = min(b.rect.top for b in buttons)
-        right  = max(b.rect.right for b in buttons)
-        bottom = max(b.rect.bottom for b in buttons)
+        pygame.draw.line(
+            self.screen,
+            (220, 220, 220),
+            (self.w // 2, 120),
+            (self.w // 2, self.h - 110),
+            3
+        )
 
-        panel_rect = pygame.Rect(left, top, right - left, bottom - top).inflate(80, 50)
-        self._panel(panel_rect)
-
-        if self.btn_single.handle(mouse_pos, mouse_down):
-            self.state = MenuUI.SINGLE
-        if self.btn_double.handle(mouse_pos, mouse_down):
-            return "PLAY_LOCAL"
+        if self.card_classic.handle(mouse_pos, mouse_down):
+            self.state = MenuUI.CLASSIC
+        if self.card_modes.handle(mouse_pos, mouse_down):
+            self.state = MenuUI.MODES
         if self.btn_back_play.handle(mouse_pos, mouse_down):
             self.state = MenuUI.MAIN
 
-        self.btn_single.draw(self.screen, self.font, self.btn_colors)
-        self.btn_double.draw(self.screen, self.font, self.btn_colors)
+        self.card_classic.draw(self.screen, self.h2_font, self.h2_font)
+        self.card_modes.draw(self.screen, self.h2_font, self.h2_font)
         self.btn_back_play.draw(self.screen, self.font, self.btn_colors)
+        return None
+    
+    def draw_classic_menu(self, mouse_pos, mouse_down) -> Optional[str]:
+        self._draw_centered("CLASSIC", self.title_font, 70)
+
+        pygame.draw.line(
+            self.screen,
+            (220, 220, 220),
+            (self.w // 2, 120),
+            (self.w // 2, self.h - 110),
+            3
+        )
+
+        if self.card_one_player.handle(mouse_pos, mouse_down):
+            self.choice.mode = "SINGLE"
+            self.choice.variant = "CLASSIC"
+            self.state = MenuUI.SINGLE
+
+        if self.card_two_player.handle(mouse_pos, mouse_down):
+            return "PLAY_LOCAL"
+
+        if self.btn_back_classic.handle(mouse_pos, mouse_down):
+            self.state = MenuUI.PLAY
+
+        self.card_one_player.draw(self.screen, self.h2_font, self.h2_font)
+        self.card_two_player.draw(self.screen, self.h2_font, self.h2_font)
+        self.btn_back_classic.draw(self.screen, self.font, self.btn_colors)
+        return None
+    
+    def draw_modes_menu(self, mouse_pos, mouse_down) -> Optional[str]:
+        self._draw_centered("MODES", self.title_font, 70)
+
+        x1 = self.card_blitz.rect.right + 25
+        x2 = self.card_mega.rect.right + 25
+
+        pygame.draw.line(self.screen, (220, 220, 220), (x1, 140), (x1, self.h - 110), 3)
+        pygame.draw.line(self.screen, (220, 220, 220), (x2, 140), (x2, self.h - 110), 3)
+
+        if self.card_blitz.handle(mouse_pos, mouse_down):
+            self.choice.mode = "SINGLE"
+            self.choice.variant = "BLITZ"
+            self.state = MenuUI.SINGLE
+
+        if self.card_mega.handle(mouse_pos, mouse_down):
+            self.choice.mode = "SINGLE"
+            self.choice.variant = "MEGA"
+            self.state = MenuUI.SINGLE
+
+        if self.card_defense.handle(mouse_pos, mouse_down):
+            self.choice.mode = "SINGLE"
+            self.choice.variant = "DEFENSE"
+            self.state = MenuUI.SINGLE
+
+        if self.btn_back_modes.handle(mouse_pos, mouse_down):
+            self.state = MenuUI.PLAY
+
+        self.card_blitz.draw(self.screen, self.h2_font, self.h2_font)
+        self.card_mega.draw(self.screen, self.h2_font, self.h2_font)
+        self.card_defense.draw(self.screen, self.h2_font, self.h2_font)
+        self.btn_back_modes.draw(self.screen, self.font, self.btn_colors)
         return None
 
     def draw_single(self, mouse_pos, mouse_down) -> Optional[str]:
@@ -247,8 +427,12 @@ class MenuUI:
 
         if self.btn_start.handle(mouse_pos, mouse_down):
             return "START_SINGLE"
+
         if self.btn_back.handle(mouse_pos, mouse_down):
-            self.state = MenuUI.PLAY
+            if self.choice.variant == "CLASSIC":
+                self.state = MenuUI.CLASSIC
+            else:
+                self.state = MenuUI.MODES
 
         self.btn_start.draw(self.screen, self.font, self.btn_colors)
         self.btn_back.draw(self.screen, self.font, self.btn_colors)
@@ -298,21 +482,30 @@ class MenuUI:
 
     def run(self, clock: pygame.time.Clock) -> Optional[MenuChoice]:
         while True:
-            mouse_pos = pygame.mouse.get_pos()
             mouse_down = False
+            mouse_pos = pygame.mouse.get_pos()
 
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT:
                     return None
+
                 if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
                     if self.state == MenuUI.MAIN:
                         return None
-                    elif self.state in (MenuUI.PLAY, MenuUI.HELP, MenuUI.SETTINGS):
+                    elif self.state == MenuUI.PLAY:
                         self.state = MenuUI.MAIN
-                    elif self.state == MenuUI.SINGLE:
+                    elif self.state == MenuUI.CLASSIC:
                         self.state = MenuUI.PLAY
+                    elif self.state == MenuUI.MODES:
+                        self.state = MenuUI.PLAY
+                    elif self.state == MenuUI.SINGLE:
+                        self.state = MenuUI.CLASSIC
+                    elif self.state in (MenuUI.HELP, MenuUI.SETTINGS):
+                        self.state = MenuUI.MAIN
+
                 if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                     mouse_down = True
+                    mouse_pos = ev.pos
 
             self.screen.fill(self.bg)
 
@@ -321,6 +514,10 @@ class MenuUI:
                 action = self.draw_main(mouse_pos, mouse_down)
             elif self.state == MenuUI.PLAY:
                 action = self.draw_play_menu(mouse_pos, mouse_down)
+            elif self.state == MenuUI.CLASSIC:
+                action = self.draw_classic_menu(mouse_pos, mouse_down)
+            elif self.state == MenuUI.MODES:
+                action = self.draw_modes_menu(mouse_pos, mouse_down)
             elif self.state == MenuUI.SINGLE:
                 action = self.draw_single(mouse_pos, mouse_down)
             elif self.state == MenuUI.HELP:
@@ -328,12 +525,13 @@ class MenuUI:
             elif self.state == MenuUI.SETTINGS:
                 action = self.draw_settings(mouse_pos, mouse_down)
 
+
             pygame.display.flip()
             clock.tick(60)
 
             if action == "QUIT":
                 return None
             if action == "PLAY_LOCAL":
-                return MenuChoice(mode="LOCAL")
+                return MenuChoice(mode="LOCAL", variant="CLASSIC")
             if action == "START_SINGLE":
                 return self.choice
