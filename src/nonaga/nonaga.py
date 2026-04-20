@@ -15,15 +15,11 @@ from src.nonaga.ai_new import choose_ai_turn, clone_game
 
 
 def ai_worker_loop(job_queue, result_queue):
-    """
-    Persistent AI worker process.
-    Waits for jobs, solves them, sends back results.
-    """
     while True:
         job = job_queue.get()
 
         if job is None:
-            break  # clean shutdown
+            break
 
         try:
             job_id = job["job_id"]
@@ -62,7 +58,7 @@ def run_game(choice):
     clock = pygame.time.Clock()
     pause_menu_open = False
 
-    game = NonagaGame()
+    game = NonagaGame(config=choice.config)
     renderer = Renderer(screen)
     input_handler = InputHandler(game)
 
@@ -70,11 +66,9 @@ def run_game(choice):
     HUMAN_PLAYER = choice.side
     AI_PLAYER = "B" if HUMAN_PLAYER == "A" else "A"
 
-    # Final gameplay settings
     AI_DEPTH = 2
     AI_TOPK = 6
 
-    # Persistent worker state
     ai_job_queue = None
     ai_result_queue = None
     ai_process = None
@@ -87,7 +81,6 @@ def run_game(choice):
     ai_active_job_id = None
     ai_start_time = None
 
-    # Start persistent worker only for single-player
     if single_player:
         ai_job_queue = mp.Queue()
         ai_result_queue = mp.Queue()
@@ -130,7 +123,6 @@ def run_game(choice):
         if not pause_menu_open:
             game.update_timer(dt)
 
-        # Start AI search by sending a job to the persistent worker
         if (
             not pause_menu_open
             and single_player
@@ -178,7 +170,6 @@ def run_game(choice):
                 print("EVENT:", ev)
 
             if ev.type == pygame.KEYDOWN:
-                # X = cancel selection
                 if ev.key == pygame.K_x:
                     if game.phase == Phase.MOVE_PAWN and game.selected_idx is not None:
                         game.cancel_selection()
@@ -188,7 +179,6 @@ def run_game(choice):
                         game.cancel_selection()
                         continue
 
-                # ESC = pause menu
                 if ev.key == pygame.K_ESCAPE:
                     if pause_menu_open:
                         pause_menu_open = False
@@ -224,7 +214,6 @@ def run_game(choice):
                         print("Settings not implemented yet")
                 continue
 
-            # Block human input during AI turn
             if single_player and (game.current != HUMAN_PLAYER or ai_running) and game.phase != Phase.GAME_OVER:
                 if DEBUG_AI and ev.type == pygame.MOUSEBUTTONDOWN:
                     print("Human clicked during AI turn (ignored).")
@@ -235,7 +224,6 @@ def run_game(choice):
                 shutdown_ai_worker()
                 return "MENU"
             if result == "RESTART":
-                # Ignore any stale result from old position
                 ai_running = False
                 ai_result = None
                 ai_error = None
@@ -243,7 +231,6 @@ def run_game(choice):
                 ai_debug_once = False
                 game.reset()
 
-        # Poll worker result queue without blocking
         if ai_result_queue is not None:
             while True:
                 try:
@@ -251,7 +238,6 @@ def run_game(choice):
                 except Empty:
                     break
 
-                # Ignore stale jobs
                 if msg.get("job_id") != ai_active_job_id:
                     continue
 
@@ -269,10 +255,8 @@ def run_game(choice):
         if pause_menu_open:
             renderer.draw_pause_menu()
 
-
         pygame.display.flip()
 
-        # Apply AI move once ready
         if not pause_menu_open and ai_result is not None:
             ai_debug_once = False
 
