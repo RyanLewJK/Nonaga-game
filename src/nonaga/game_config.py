@@ -6,29 +6,40 @@ from typing import Optional
 class GameConfig:
     variant: str = "CLASSIC"
 
-    # board
+    # -------- Board / pieces --------
     board_radius: int = 2
-    pawns_per_player: int = 3
-    win_length: int = 3
+    pawns_a: int = 3
+    pawns_b: int = 3
+    allow_normal_connection_win: bool = True
 
-    # timer
-    turn_time_limit: Optional[int] = None  # None = default 5 mins
+    # -------- Timer --------
+    # None means use the normal default in the game (currently 5 minutes)
+    turn_time_limit: Optional[int] = None
 
-    # control mode
-    control_mode: bool = False
-    control_required: int = 0
-
-    # survival mode
+    # -------- Survival mode --------
     survival_mode: bool = False
     survival_turns: Optional[int] = None
+
+    # -------- Control mode / special discs --------
+    control_mode: bool = False
+    gold_enabled: bool = False
+    silver_enabled: bool = False
+    respawn_delay_turns: int = 2
+
+    # -------- AI tuning --------
+    ai_depth: int = 2
+    ai_top_k: int = 6
 
 
 def classic_config() -> GameConfig:
     return GameConfig(
         variant="CLASSIC",
         board_radius=2,
-        pawns_per_player=3,
-        win_length=3
+        pawns_a=3,
+        pawns_b=3,
+        allow_normal_connection_win=True,
+        ai_depth=2,
+        ai_top_k=8
     )
 
 
@@ -36,19 +47,11 @@ def mega_config() -> GameConfig:
     return GameConfig(
         variant="MEGA",
         board_radius=3,
-        pawns_per_player=4,
-        win_length=4
-    )
-
-
-def control_config() -> GameConfig:
-    return GameConfig(
-        variant="CONTROL",
-        board_radius=2,
-        pawns_per_player=3,
-        win_length=3,
-        control_mode=True,
-        control_required=3
+        pawns_a=4,
+        pawns_b=4,
+        allow_normal_connection_win=True,
+        ai_depth=2,
+        ai_top_k=4
     )
 
 
@@ -56,8 +59,27 @@ def survival_config() -> GameConfig:
     return GameConfig(
         variant="SURVIVAL",
         board_radius=2,
-        pawns_per_player=3,
-        win_length=3,
+        pawns_a=2,
+        pawns_b=3,
+        allow_normal_connection_win=False,
         survival_mode=True,
-        survival_turns=15
+        survival_turns=12,
+        ai_depth=2,
+        ai_top_k=6
+    )
+
+
+def control_config() -> GameConfig:
+    return GameConfig(
+        variant="CONTROL",
+        board_radius=2,
+        pawns_a=3,
+        pawns_b=3,
+        allow_normal_connection_win=True,
+        control_mode=True,
+        gold_enabled=True,
+        silver_enabled=True,
+        respawn_delay_turns=2,
+        ai_depth=2,
+        ai_top_k=6
     )
