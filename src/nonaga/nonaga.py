@@ -1,7 +1,5 @@
-from random import choice
 import sys
 import traceback
-from prompt_toolkit import choice
 import pygame
 import multiprocessing as mp
 from queue import Empty
@@ -12,6 +10,7 @@ from src.nonaga.renderer import Renderer
 from src.nonaga.input_handler import InputHandler
 from src.nonaga.constants import SCREEN_W, SCREEN_H
 from src.nonaga.menu import MenuUI
+from src.nonaga.hexgrid import k
 
 from src.nonaga.ai_new import choose_ai_turn, clone_game
 
@@ -44,10 +43,13 @@ def ai_worker_loop(job_queue, result_queue):
             })
 
         except Exception:
+            err = traceback.format_exc()
+            print("AI worker crashed:")
+            print(err)
             result_queue.put({
                 "status": "ERROR",
                 "job_id": job.get("job_id"),
-                "error": traceback.format_exc(),
+                "error": err,
             })
 
 
@@ -69,11 +71,14 @@ def run_game(choice):
         human_player=HUMAN_PLAYER,
         ai_player=AI_PLAYER
     )
+
     renderer = Renderer(screen)
     input_handler = InputHandler(game)
 
     AI_DEPTH = choice.config.ai_depth if choice.config else 2
-    AI_TOPK = choice.config.ai_top_k if choice.config else 8
+    AI_TOPK = choice.config.ai_top_k if choice.config else 6
+
+    print("AI config:", choice.config.variant, "depth=", AI_DEPTH, "top_k=", AI_TOPK)
 
     ai_job_queue = None
     ai_result_queue = None
@@ -86,6 +91,9 @@ def run_game(choice):
     ai_job_id = 0
     ai_active_job_id = None
     ai_start_time = None
+    ai_result_ready = False
+
+    MIN_AI_THINK_TIME = 0.8
 
     if single_player:
         ai_job_queue = mp.Queue()
@@ -103,6 +111,7 @@ def run_game(choice):
 
     def shutdown_ai_worker():
         nonlocal ai_process, ai_job_queue, ai_result_queue, ai_running, ai_active_job_id
+
         try:
             if ai_job_queue is not None:
                 ai_job_queue.put(None)
@@ -122,19 +131,62 @@ def run_game(choice):
         ai_running = False
         ai_active_job_id = None
 
+    def resolve_ai_gold_powerup():
+        opponent = HUMAN_PLAYER
+
+        best_idx = None
+        best_target = None
+        best_score = -10**9
+
+        for idx in game.gold_movable_enemy_indices:
+            current_pos = game.pawns[opponent][idx]
+            moves = game.pawn_moves_from(current_pos)
+
+            for target_pos in moves:
+                score = 0
+                for j, other in enumerate(game.pawns[opponent]):
+                    if j != idx:
+                        score += abs(target_pos[0] - other[0]) + abs(target_pos[1] - other[1])
+
+                if score > best_score:
+                    best_score = score
+                    best_idx = idx
+                    best_target = target_pos
+
+        if best_idx is not None and best_target is not None:
+            game.pawns[opponent][best_idx] = best_target
+            game.set_action_text("AI used GOLD to move your pawn!")
+        else:
+            game.set_action_text("AI activated GOLD, but no pawn could move.")
+
+        winner = game.check_any_win()
+        if winner is not None:
+            game.winner = winner
+            game.phase = Phase.GAME_OVER
+            return
+
+        game.gold_move_enemy_active = False
+        game.gold_movable_enemy_indices = []
+        game.gold_valid_enemy_moves = []
+        game.gold_selected_enemy_idx = None
+        game.finish_turn()
+
     running = True
+
     while running:
         dt = clock.tick(60) / 1000.0
 
         if not pause_menu_open:
             game.update_timer(dt)
 
+        # Start AI search
         if (
             not pause_menu_open
             and single_player
             and game.current == AI_PLAYER
             and game.phase == Phase.MOVE_PAWN
             and not ai_running
+            and not ai_result_ready
             and ai_process is not None
         ):
             if DEBUG_AI and not ai_debug_once:
@@ -151,6 +203,7 @@ def run_game(choice):
 
             ai_result = None
             ai_error = None
+            ai_result_ready = False
             ai_running = True
             ai_start_time = time.time()
 
@@ -226,9 +279,11 @@ def run_game(choice):
                 continue
 
             result = input_handler.handle_event(ev)
+
             if result == "MENU":
                 shutdown_ai_worker()
                 return "MENU"
+
             if result == "RESTART":
                 ai_running = False
                 ai_result = None
@@ -237,6 +292,7 @@ def run_game(choice):
                 ai_debug_once = False
                 game.reset()
 
+        # Poll worker result queue
         if ai_result_queue is not None:
             while True:
                 try:
@@ -250,9 +306,11 @@ def run_game(choice):
                 if msg["status"] == "OK":
                     ai_result = msg["turn"]
                     ai_error = None
+                    ai_result_ready = True
                 else:
                     ai_result = None
                     ai_error = msg.get("error", "Unknown AI worker error")
+                    ai_result_ready = True
 
                 ai_running = False
 
@@ -263,14 +321,19 @@ def run_game(choice):
 
         pygame.display.flip()
 
-        if not pause_menu_open and ai_result is not None:
+        # Handle AI worker errors
+        if ai_error is not None:
+            print("AI worker error:")
+            print(ai_error)
+            shutdown_ai_worker()
+            return "MENU"
+
+        # Apply AI move once ready
+        if not pause_menu_open and ai_result_ready:
             ai_debug_once = False
 
-            if ai_error is not None:
-                print("AI worker error:")
-                print(ai_error)
-                shutdown_ai_worker()
-                return "MENU"
+            if ai_start_time is not None and (time.time() - ai_start_time) < MIN_AI_THINK_TIME:
+                continue
 
             if game.phase != Phase.GAME_OVER and game.current == AI_PLAYER:
                 turn = ai_result
@@ -283,8 +346,10 @@ def run_game(choice):
                 if turn is None:
                     print("AI: No legal turns found. Giving turn back to human.")
                     game.current = HUMAN_PLAYER
+
                 else:
                     pawn_i, target, rem_key, place_key = turn
+
                     print(
                         "AI: applying turn ->",
                         "pawn_i:", pawn_i,
@@ -293,20 +358,46 @@ def run_game(choice):
                         "place:", place_key
                     )
 
+                    landed_on_gold = game.gold_disc is not None and k(target) == game.gold_disc
+                    landed_on_silver = game.silver_disc is not None and k(target) == game.silver_disc
+
                     game.pawns[AI_PLAYER][pawn_i] = target
                     game.handle_special_landing(AI_PLAYER, target)
+
+                    if landed_on_gold:
+                        game.set_action_text("AI activated GOLD!")
+                    elif landed_on_silver:
+                        game.set_action_text("AI activated SILVER!")
+
+                    removed_was_gold = (rem_key == game.gold_disc)
+                    removed_was_silver = (rem_key == game.silver_disc)
 
                     if rem_key in game.occupied:
                         game.occupied.remove(rem_key)
 
+                    if removed_was_gold:
+                        game.gold_disc = None
+                    if removed_was_silver:
+                        game.silver_disc = None
+
                     game.occupied.add(place_key)
+
+                    if removed_was_gold:
+                        game.gold_disc = place_key
+                    if removed_was_silver:
+                        game.silver_disc = place_key
+
                     game.end_turn_after_placement(place_key)
+
+                    if game.phase == "GOLD_MOVE_ENEMY":
+                        resolve_ai_gold_powerup()
 
                     if DEBUG_AI:
                         print("AI: done. New current:", game.current, "phase:", game.phase)
 
             ai_result = None
             ai_error = None
+            ai_result_ready = False
             ai_running = False
             ai_active_job_id = None
             ai_start_time = None
@@ -330,6 +421,7 @@ def main():
             break
 
         result = run_game(choice)
+
         if result == "QUIT":
             break
 

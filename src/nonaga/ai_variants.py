@@ -151,14 +151,14 @@ def evaluate_control(game, ai_player: str) -> float:
         my_silver_dist = _distance_to_cell_key(game.pawns[ai_player], game.silver_disc)
         opp_silver_dist = _distance_to_cell_key(game.pawns[opp], game.silver_disc)
 
-        score += -8 * my_silver_dist
-        score += 4 * opp_silver_dist
+        score += -12 * my_silver_dist
+        score += 6 * opp_silver_dist
 
-    # If AI currently has bonus turn or silver effect active, reward it
-    if game.extra_turn_active and game.current == ai_player:
+    # Reward currently active power-up states
+    if getattr(game, "gold_move_enemy_active", False) and game.current == ai_player:
         score += 120
 
-    if game.special_move_edge_only and game.current == ai_player:
+    if getattr(game, "special_remove_any", False) and game.current == ai_player:
         score += 35
 
     return score

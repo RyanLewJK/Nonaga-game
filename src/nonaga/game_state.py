@@ -33,8 +33,12 @@ class Snapshot:
     gold_respawn_counter: int
     silver_respawn_counter: int
 
-    extra_turn_active: bool
     special_remove_any: bool
+
+    gold_move_enemy_active: bool
+    gold_movable_enemy_indices: List[int]
+    gold_valid_enemy_moves: List[Axial]
+    gold_selected_enemy_idx: Optional[int]
 
 
 class NonagaGame:
@@ -72,11 +76,21 @@ class NonagaGame:
         self.gold_disc: Optional[str] = None
         self.silver_disc: Optional[str] = None
 
+        self.removed_was_gold = False
+        self.removed_was_silver = False
+
         self.gold_respawn_counter = 0
         self.silver_respawn_counter = 0
 
-        self.extra_turn_active = False
+        self.gold_move_enemy_active = False
+        self.gold_movable_enemy_indices: List[int] = []
+        self.gold_valid_enemy_moves: List[Axial] = []
+        self.gold_selected_enemy_idx: Optional[int] = None
+
         self.special_remove_any = False
+
+        self.last_action_text = ""
+        self.last_action_timer = 0.0
 
         self.history: List[Snapshot] = []
         self.reset()
@@ -102,8 +116,12 @@ class NonagaGame:
                 gold_respawn_counter=self.gold_respawn_counter,
                 silver_respawn_counter=self.silver_respawn_counter,
 
-                extra_turn_active=self.extra_turn_active,
                 special_remove_any=self.special_remove_any,
+
+                gold_move_enemy_active=self.gold_move_enemy_active,
+                gold_movable_enemy_indices=list(self.gold_movable_enemy_indices),
+                gold_valid_enemy_moves=list(self.gold_valid_enemy_moves),
+                gold_selected_enemy_idx=self.gold_selected_enemy_idx,
             )
         )
         if len(self.history) > 200:
@@ -117,6 +135,15 @@ class NonagaGame:
 
         if self.phase == Phase.PICK_PLACE and self.removable is not None:
             self.occupied.add(self.removable)
+
+            if self.removed_was_gold:
+                self.gold_disc = self.removable
+                self.removed_was_gold = False
+
+            if self.removed_was_silver:
+                self.silver_disc = self.removable
+                self.removed_was_silver = False
+
             self.phase = Phase.PICK_REMOVE
             self.valid_placements = set()
             self.valid_removals = self.compute_valid_removals()
@@ -125,6 +152,28 @@ class NonagaGame:
 
     def _board_radius(self) -> int:
         return self.config.board_radius
+    
+    def opponent_of(self, player: str) -> str:
+        return "B" if player == "A" else "A"
+
+    def start_gold_enemy_move_phase(self):
+        opponent = self.opponent_of(self.current)
+
+        self.gold_movable_enemy_indices = []
+        self.gold_valid_enemy_moves = []
+        self.gold_selected_enemy_idx = None
+
+        for idx, pos in enumerate(self.pawns[opponent]):
+            moves = self.pawn_moves_from(pos)
+            if moves:
+                self.gold_movable_enemy_indices.append(idx)
+
+        if self.gold_movable_enemy_indices:
+            self.phase = "GOLD_MOVE_ENEMY"
+        else:
+            # no valid enemy pawn moves, just end normally
+            self.gold_move_enemy_active = False
+            self.finish_turn()
 
     def _initial_time(self) -> float:
         if self.config.turn_time_limit is not None:
@@ -203,6 +252,10 @@ class NonagaGame:
         cells = self.available_special_cells()
         self.silver_disc = random.choice(cells) if cells else None
 
+    def set_action_text(self, text: str, duration: float = 1.5):
+        self.last_action_text = text
+        self.last_action_timer = duration
+
     def is_edge_cell(self, cell_key: str) -> bool:
         q, r = parse_key(cell_key)
         for dq, dr in DIRS:
@@ -219,7 +272,7 @@ class NonagaGame:
         if self.gold_disc is not None and cell == self.gold_disc:
             self.gold_disc = None
             self.gold_respawn_counter = self.config.respawn_delay_turns
-            self.extra_turn_active = True
+            self.gold_move_enemy_active = True
 
         elif self.silver_disc is not None and cell == self.silver_disc:
             self.silver_disc = None
@@ -267,10 +320,19 @@ class NonagaGame:
 
         self.gold_disc = None
         self.silver_disc = None
+        self.removed_was_gold = False
+        self.removed_was_silver = False
         self.gold_respawn_counter = 0
         self.silver_respawn_counter = 0
-        self.extra_turn_active = False
         self.special_remove_any = False
+
+        self.gold_move_enemy_active = False
+        self.gold_movable_enemy_indices = []
+        self.gold_valid_enemy_moves = []
+        self.gold_selected_enemy_idx = None
+
+        self.last_action_text = ""
+        self.last_action_timer = 0.0
 
         if self.config.control_mode:
             self.spawn_gold_disc()
@@ -424,6 +486,30 @@ class NonagaGame:
 
         return None
 
+    def finish_turn(self):
+        previous_player = self.current
+        self.current = "B" if self.current == "A" else "A"
+
+        if self.config.survival_mode and previous_player == self.human_player:
+            self.survival_turn_count += 1
+            winner = self.check_survival_win()
+            if winner is not None:
+                self.winner = winner
+                self.phase = Phase.GAME_OVER
+                return
+
+        self.advance_special_respawns()
+
+        self.special_remove_any = False
+
+        self.gold_move_enemy_active = False
+        self.gold_movable_enemy_indices = []
+        self.gold_valid_enemy_moves = []
+        self.gold_selected_enemy_idx = None
+
+        self.phase = Phase.MOVE_PAWN
+        self.recompute()
+
     def end_turn_after_placement(self, placed_key: str):
         self.blocked = None
         self.removable = None
@@ -438,35 +524,11 @@ class NonagaGame:
             self.phase = Phase.GAME_OVER
             return
 
-        previous_player = self.current
-
-        # Gold disc gives a full extra turn.
-        # The extra turn does NOT count toward respawn timers.
-        if self.extra_turn_active:
-            self.extra_turn_active = False
-            self.phase = Phase.MOVE_PAWN
-            self.recompute()
+        if self.gold_move_enemy_active:
+            self.start_gold_enemy_move_phase()
             return
 
-        self.current = "B" if self.current == "A" else "A"
-
-        # Survival counts completed human turns only
-        if self.config.survival_mode and previous_player == self.human_player:
-            self.survival_turn_count += 1
-            winner = self.check_survival_win()
-            if winner is not None:
-                self.winner = winner
-                self.phase = Phase.GAME_OVER
-                return
-
-        # Only normal turn transitions advance respawn timers
-        self.advance_special_respawns()
-
-        # Silver effect lasts only for the turn it was earned
-        self.special_remove_any = False
-
-        self.phase = Phase.MOVE_PAWN
-        self.recompute()
+        self.finish_turn()
 
     def recompute(self):
         self.valid_moves = []
@@ -497,14 +559,50 @@ class NonagaGame:
 
         elif self.phase == Phase.PICK_REMOVE:
             if cell_key in self.valid_removals:
-                self.occupied.remove(cell_key)
                 self.removable = cell_key
+
+                # remember whether the removed disc carries a special marker
+                self.removed_was_gold = (cell_key == self.gold_disc)
+                self.removed_was_silver = (cell_key == self.silver_disc)
+
+                self.occupied.remove(cell_key)
+
+                # temporarily remove marker from old location
+                if self.removed_was_gold:
+                    self.gold_disc = None
+                if self.removed_was_silver:
+                    self.silver_disc = None
+
                 self.valid_placements = self.compute_valid_placements()
                 self.phase = Phase.PICK_PLACE
                 return
 
         elif self.phase == Phase.PICK_PLACE:
             return
+        
+        elif self.phase == "GOLD_MOVE_ENEMY":
+            opponent = self.opponent_of(self.current)
+
+            idx = self.pawn_index_at(opponent, cell_key)
+            if idx is not None:
+                if idx in self.gold_movable_enemy_indices:
+                    self.gold_selected_enemy_idx = idx
+                    self.gold_valid_enemy_moves = self.pawn_moves_from(self.pawns[opponent][idx])
+                return
+
+            if self.gold_selected_enemy_idx is not None:
+                target = parse_key(cell_key)
+                if target in self.gold_valid_enemy_moves:
+                    self.pawns[opponent][self.gold_selected_enemy_idx] = target
+
+                    winner = self.check_any_win()
+                    if winner is not None:
+                        self.winner = winner
+                        self.phase = Phase.GAME_OVER
+                        return
+
+                    self.finish_turn()
+                return
 
     def click_place(self, pos: Axial):
         if self.phase != Phase.PICK_PLACE:
@@ -512,9 +610,23 @@ class NonagaGame:
         cell_key = k(pos)
         if cell_key in self.valid_placements:
             self.occupied.add(cell_key)
+
+            if getattr(self, "removed_was_gold", False):
+                self.gold_disc = cell_key
+                self.removed_was_gold = False
+
+            if getattr(self, "removed_was_silver", False):
+                self.silver_disc = cell_key
+                self.removed_was_silver = False
+
             self.end_turn_after_placement(cell_key)
 
     def update_timer(self, dt: float):
+        if self.last_action_timer > 0:
+            self.last_action_timer -= dt
+            if self.last_action_timer <= 0:
+                self.last_action_text = ""
+                self.last_action_timer = 0
         if self.phase == Phase.GAME_OVER:
             return
         self.time_left[self.current] -= dt

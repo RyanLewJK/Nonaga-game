@@ -4,7 +4,7 @@
 
 import math
 from src.nonaga.game_state import NonagaGame
-from src.nonaga.hexgrid import parse_key
+from src.nonaga.hexgrid import parse_key, k
 from src.nonaga.ai_variants import evaluate_by_mode
 
 TT = {}
@@ -29,8 +29,12 @@ def state_key(game, to_move, depth):
         game.gold_respawn_counter,
         game.silver_respawn_counter,
 
-        game.extra_turn_active,
         game.special_remove_any,
+
+        game.gold_move_enemy_active,
+        tuple(game.gold_movable_enemy_indices),
+        tuple(game.gold_valid_enemy_moves),
+        game.gold_selected_enemy_idx,
     )
 
 def adjacent_pair_count(pawns):
@@ -44,25 +48,35 @@ def adjacent_pair_count(pawns):
 
 # ---------- Fast clone ----------
 def clone_game(g: NonagaGame) -> NonagaGame:
+    """
+    Fast clone for AI search.
+    Copies only what is needed for move generation, special mode logic,
+    and evaluation. Does not copy undo history.
+    """
     ng = NonagaGame.__new__(NonagaGame)
 
+    # config / mode
     ng.config = g.config
 
+    # board + pawns
     ng.occupied = set(g.occupied)
     ng.pawns = {
         "A": [tuple(p) for p in g.pawns["A"]],
         "B": [tuple(p) for p in g.pawns["B"]],
     }
 
+    # turn state
     ng.current = g.current
     ng.phase = g.phase
     ng.selected_idx = g.selected_idx
     ng.removable = g.removable
     ng.blocked = g.blocked
 
+    # timer / winner
     ng.time_left = dict(g.time_left)
     ng.winner = g.winner
 
+    # mode-specific state
     ng.human_player = g.human_player
     ng.ai_player = g.ai_player
     ng.survival_turn_count = g.survival_turn_count
@@ -73,12 +87,19 @@ def clone_game(g: NonagaGame) -> NonagaGame:
     ng.gold_respawn_counter = g.gold_respawn_counter
     ng.silver_respawn_counter = g.silver_respawn_counter
 
-    ng.extra_turn_active = g.extra_turn_active
     ng.special_remove_any = g.special_remove_any
 
+    ng.gold_move_enemy_active = g.gold_move_enemy_active
+    ng.gold_movable_enemy_indices = list(g.gold_movable_enemy_indices)
+    ng.gold_valid_enemy_moves = list(g.gold_valid_enemy_moves)
+    ng.gold_selected_enemy_idx = g.gold_selected_enemy_idx
+
+    # UI / cached fields
     ng.valid_moves = []
     ng.valid_removals = set()
     ng.valid_placements = set()
+
+    # no undo history for AI
     ng.history = []
 
     return ng
@@ -123,6 +144,14 @@ def endpoint_score(game, player, pawn_i, target):
     g1 = clone_game(game)
     g1.pawns[player][pawn_i] = target
     opp = "B" if player == "A" else "A"
+
+    target_key = k(target)
+
+    if game.config.control_mode:
+        if g1.gold_disc is not None and target_key == g1.gold_disc:
+            return 100000
+        if g1.silver_disc is not None and target_key == g1.silver_disc:
+            return 50000
 
     my_cluster = pairwise_distance_sum(g1.pawns[player])
     opp_cluster = pairwise_distance_sum(g1.pawns[opp])
@@ -171,17 +200,37 @@ def generate_turns(game, player, top_k_placements=6, root=False):
     root=False:
       tighter pruning for minimax search
     """
+    print("generate_turns called:", game.config.variant, "root=", root)
     turns = []
     opp = "B" if player == "A" else "A"
 
-    if root:
-        endpoint_limit = 3
-        removal_limit = 6
-        placement_limit = max(top_k_placements, 12)
+    if game.config.variant == "CONTROL":
+        if root:
+            endpoint_limit = 2
+            removal_limit = 2
+            placement_limit = 2
+        else:
+            endpoint_limit = 1
+            removal_limit = 2
+            placement_limit = 2
+    elif game.config.variant == "MEGA":
+        if root:
+            endpoint_limit = 2
+            removal_limit = 3
+            placement_limit = min(top_k_placements, 4)
+        else:
+            endpoint_limit = 1
+            removal_limit = 2
+            placement_limit = min(top_k_placements, 3)
     else:
-        endpoint_limit = 2
-        removal_limit = 4
-        placement_limit = top_k_placements
+        if root:
+            endpoint_limit = 3
+            removal_limit = 6
+            placement_limit = max(top_k_placements, 12)
+        else:
+            endpoint_limit = 2
+            removal_limit = 4
+            placement_limit = top_k_placements
 
     for pawn_i, pawn_pos in enumerate(game.pawns[player]):
         endpoints = game.pawn_moves_from(pawn_pos)
@@ -208,7 +257,6 @@ def generate_turns(game, player, top_k_placements=6, root=False):
                 if not placements:
                     continue
 
-                # Filter out placements far from both sides.
                 filtered = []
                 for place_key in placements:
                     pos = parse_key(place_key)
@@ -230,8 +278,6 @@ def generate_turns(game, player, top_k_placements=6, root=False):
                     pos = parse_key(place_key)
                     near_me = min(hex_distance(pos, p) for p in g2.pawns[player])
                     near_opp = min(hex_distance(pos, p) for p in g2.pawns[opp])
-
-                    # Prefer placements near our pawns and also near the opponent to interfere.
                     return (-2 * near_me) - (1 * near_opp)
 
                 placements.sort(key=place_score, reverse=True)
@@ -239,20 +285,39 @@ def generate_turns(game, player, top_k_placements=6, root=False):
                 for place_key in placements[:placement_limit]:
                     turns.append((pawn_i, target, rem_key, place_key))
 
+    print("generate_turns produced:", len(turns))
+
     return turns
 
 
 def apply_turn(game, player, turn):
+    """
+    Apply a full turn to a cloned game using the game's real mode-aware rules.
+    """
     pawn_i, target, rem_key, place_key = turn
 
     game.current = player
     game.pawns[player][pawn_i] = target
     game.handle_special_landing(player, target)
 
+    removed_was_gold = (rem_key == game.gold_disc)
+    removed_was_silver = (rem_key == game.silver_disc)
+
     if rem_key in game.occupied:
         game.occupied.remove(rem_key)
 
+    if removed_was_gold:
+        game.gold_disc = None
+    if removed_was_silver:
+        game.silver_disc = None
+
     game.occupied.add(place_key)
+
+    if removed_was_gold:
+        game.gold_disc = place_key
+    if removed_was_silver:
+        game.silver_disc = place_key
+
     game.end_turn_after_placement(place_key)
 
 
@@ -377,12 +442,20 @@ def choose_ai_turn_at_depth(game, ai_player, depth, top_k_placements=6):
 
     return best_turn
 
-def choose_ai_turn(game, ai_player, depth=3, top_k_placements=6):
+def choose_ai_turn(game, ai_player, depth=2, top_k_placements=8):
     """Return best full-turn action for ai_player, or None if no moves."""
     TT.clear()
 
-    # 1. Wider root scan to avoid pruning away obvious tactical wins.
-    root_turns = generate_turns(game, ai_player, top_k_placements=top_k_placements, root=True)
+    if game.config.variant == "CONTROL":
+        return choose_ai_turn_control(game, ai_player)
+
+    use_wide_root = (game.config.variant not in ("CONTROL", "MEGA"))
+    root_turns = generate_turns(
+        game,
+        ai_player,
+        top_k_placements=top_k_placements,
+        root=use_wide_root
+    )
     if not root_turns:
         return None
 
@@ -399,5 +472,35 @@ def choose_ai_turn(game, ai_player, depth=3, top_k_placements=6):
         turn = choose_ai_turn_at_depth(game, ai_player, d, top_k_placements)
         if turn is not None:
             best_turn = turn
+
+    return best_turn
+
+def choose_ai_turn_control(game, ai_player):
+    """
+    Fast greedy chooser for Control mode.
+    No minimax; just score a small set of candidate full turns.
+    """
+    turns = generate_turns(game, ai_player, top_k_placements=2, root=False)
+    print("CONTROL candidate turns:", len(turns))
+
+    if not turns:
+        return None
+
+    best_turn = None
+    best_val = -math.inf
+
+    for i, t in enumerate(turns):
+        g2 = clone_game(game)
+        apply_turn(g2, ai_player, t)
+
+        # immediate win check
+        if g2.check_any_win() == ai_player:
+            return t
+
+        val = evaluate(g2, ai_player)
+
+        if val > best_val:
+            best_val = val
+            best_turn = t
 
     return best_turn

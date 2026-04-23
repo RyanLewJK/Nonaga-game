@@ -177,9 +177,14 @@ class Renderer:
                 pygame.draw.circle(self.screen, PLACE_FILL, (int(x), int(y)), 10)
                 pygame.draw.circle(self.screen, PLACE_STROKE, (int(x), int(y)), 10, 2)
 
-        # pawn move targets
         if game.phase == Phase.MOVE_PAWN and game.selected_idx is not None:
             for pos in game.valid_moves:
+                x, y = axial_to_pixel(pos, HEX_SIZE, ORIGIN)
+                pygame.draw.circle(self.screen, MOVE_FILL, (int(x), int(y)), 12)
+                pygame.draw.circle(self.screen, MOVE_STROKE, (int(x), int(y)), 12, 2)
+
+        if game.phase == "GOLD_MOVE_ENEMY" and game.gold_selected_enemy_idx is not None:
+            for pos in game.gold_valid_enemy_moves:
                 x, y = axial_to_pixel(pos, HEX_SIZE, ORIGIN)
                 pygame.draw.circle(self.screen, MOVE_FILL, (int(x), int(y)), 12)
                 pygame.draw.circle(self.screen, MOVE_STROKE, (int(x), int(y)), 12, 2)
@@ -205,8 +210,9 @@ class Renderer:
 
         phase_text = {
             Phase.MOVE_PAWN: "Move a pawn",
-            Phase.PICK_REMOVE: "Remove an edge disc",
+            Phase.PICK_REMOVE: "Remove a disc" if game.special_remove_any else "Remove an edge disc",
             Phase.PICK_PLACE: "Place the disc",
+            "GOLD_MOVE_ENEMY": "Move an enemy pawn",
             Phase.GAME_OVER: "Game over",
         }[game.phase]
 
