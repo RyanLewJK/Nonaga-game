@@ -31,6 +31,16 @@ class Renderer:
             self.pawn_img_B, (int(PAWN_R * 3.5), int(PAWN_R * 3.5))
         )
 
+        self.gold_disc_img = pygame.image.load("assets/img/gold_control_disc.png").convert_alpha()
+        self.silver_disc_img = pygame.image.load("assets/img/silver_control_disc.png").convert_alpha()
+
+        self.gold_disc_img = pygame.transform.smoothscale(
+            self.gold_disc_img, (int(DISC_R * 1.9), int(DISC_R * 1.9))
+        )
+        self.silver_disc_img = pygame.transform.smoothscale(
+            self.silver_disc_img, (int(DISC_R * 1.9), int(DISC_R * 1.9))
+        )
+
         self.turn_red = pygame.image.load("assets/img/red_turn.png").convert_alpha()
         self.turn_blue = pygame.image.load("assets/img/blue_turn.png").convert_alpha()
 
@@ -123,11 +133,41 @@ class Renderer:
             rect = self.cell_img.get_rect(center=(int(x), int(y)))
             self.screen.blit(self.cell_img, rect)
 
+            if game.gold_disc == cell:
+                gold_rect = self.gold_disc_img.get_rect(center=(int(x), int(y)))
+                self.screen.blit(self.gold_disc_img, gold_rect)
+
+            if game.silver_disc == cell:
+                silver_rect = self.silver_disc_img.get_rect(center=(int(x), int(y)))
+                self.screen.blit(self.silver_disc_img, silver_rect)
+
             if game.phase == Phase.PICK_REMOVE and cell in game.valid_removals:
                 pygame.draw.circle(self.screen, REM_STROKE, (int(x), int(y)), DISC_R, 3)
 
-            if game.blocked == cell:
-                pygame.draw.circle(self.screen, BLOCKED_STROKE, (int(x), int(y)), DISC_R, 3)
+            info_y = 130
+
+            if game.config.survival_mode and game.config.survival_turns is not None:
+                self.draw_text(
+                    f"Survive: {game.survival_turn_count}/{game.config.survival_turns}",
+                    14,
+                    info_y,
+                    self.font,
+                    UI_MUTED
+                )
+                info_y += 24
+
+            if game.config.control_mode:
+                gold_status = "READY" if game.gold_disc else f"Respawn {game.gold_respawn_counter}"
+                silver_status = "READY" if game.silver_disc else f"Respawn {game.silver_respawn_counter}"
+
+                self.draw_text(f"Gold: {gold_status}", 14, info_y, self.font, (230, 200, 90))
+                info_y += 24
+                self.draw_text(f"Silver: {silver_status}", 14, info_y, self.font, (200, 200, 220))
+                info_y += 24
+
+
+            if game.blocked:
+                self.draw_text(f"Blocked: {game.blocked}", 14, info_y, self.font, UI_MUTED)
 
         # placement dots
         if game.phase == Phase.PICK_PLACE:
@@ -172,6 +212,7 @@ class Renderer:
 
         # Top-left info block
         self.draw_text(f"Phase: {phase_text}", 14, 20, self.big, (245, 245, 245))
+        self.draw_text(f"Mode: {game.config.variant}", 14, 48, self.font, UI_MUTED)
         self.draw_text("Red Time", 14, 58, self.font, (230, 70, 70))
         self.draw_text(game.format_time("A"), 140, 58, self.font, UI_TEXT)
         self.draw_text("Blue Time", 14, 84, self.font, (70, 140, 255))

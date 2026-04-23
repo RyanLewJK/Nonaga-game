@@ -1,5 +1,7 @@
+from random import choice
 import sys
 import traceback
+from prompt_toolkit import choice
 import pygame
 import multiprocessing as mp
 from queue import Empty
@@ -58,16 +60,20 @@ def run_game(choice):
     clock = pygame.time.Clock()
     pause_menu_open = False
 
-    game = NonagaGame(config=choice.config)
-    renderer = Renderer(screen)
-    input_handler = InputHandler(game)
-
     single_player = (choice.mode == "SINGLE")
     HUMAN_PLAYER = choice.side
     AI_PLAYER = "B" if HUMAN_PLAYER == "A" else "A"
 
-    AI_DEPTH = 2
-    AI_TOPK = 6
+    game = NonagaGame(
+        config=choice.config,
+        human_player=HUMAN_PLAYER,
+        ai_player=AI_PLAYER
+    )
+    renderer = Renderer(screen)
+    input_handler = InputHandler(game)
+
+    AI_DEPTH = choice.config.ai_depth if choice.config else 2
+    AI_TOPK = choice.config.ai_top_k if choice.config else 8
 
     ai_job_queue = None
     ai_result_queue = None
@@ -288,7 +294,11 @@ def run_game(choice):
                     )
 
                     game.pawns[AI_PLAYER][pawn_i] = target
-                    game.occupied.remove(rem_key)
+                    game.handle_special_landing(AI_PLAYER, target)
+
+                    if rem_key in game.occupied:
+                        game.occupied.remove(rem_key)
+
                     game.occupied.add(place_key)
                     game.end_turn_after_placement(place_key)
 

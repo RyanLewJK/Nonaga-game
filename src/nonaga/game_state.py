@@ -34,12 +34,20 @@ class Snapshot:
     silver_respawn_counter: int
 
     extra_turn_active: bool
-    special_move_edge_only: bool
+    special_remove_any: bool
 
 
 class NonagaGame:
-    def __init__(self, config: Optional[GameConfig] = None):
+    def __init__(
+        self,
+        config: Optional[GameConfig] = None,
+        human_player: str = "A",
+        ai_player: str = "B"
+    ):
         self.config = config if config is not None else classic_config()
+
+        self.human_player = human_player
+        self.ai_player = ai_player
 
         default_time = 300.0
         if self.config.turn_time_limit is not None:
@@ -59,10 +67,6 @@ class NonagaGame:
         self.valid_removals: Set[str] = set()
         self.valid_placements: Set[str] = set()
 
-        # mode-specific state
-        self.human_player = "A"
-        self.ai_player = "B"
-
         self.survival_turn_count = 0
 
         self.gold_disc: Optional[str] = None
@@ -72,7 +76,7 @@ class NonagaGame:
         self.silver_respawn_counter = 0
 
         self.extra_turn_active = False
-        self.special_move_edge_only = False
+        self.special_remove_any = False
 
         self.history: List[Snapshot] = []
         self.reset()
@@ -99,7 +103,7 @@ class NonagaGame:
                 silver_respawn_counter=self.silver_respawn_counter,
 
                 extra_turn_active=self.extra_turn_active,
-                special_move_edge_only=self.special_move_edge_only,
+                special_remove_any=self.special_remove_any,
             )
         )
         if len(self.history) > 200:
@@ -133,14 +137,12 @@ class NonagaGame:
             human_side = self.human_player
             ai_side = self.ai_player
 
-            # Human gets 2 spread-out pawns
             human_pawns = [(2, 0), (0, 2)]
 
-            # AI gets 3 pawns, with 2 already connected
             ai_options = [
-                [(0, -2), (1, -2), (-2, 0)],
-                [(-2, 2), (-1, 1), (2, -2)],
-                [(2, -2), (1, -1), (-2, 2)],
+                [(-2, 0), (-1, 0), (2, -2)],
+                [(0, -2), (1, -2), (-2, 2)],
+                [(2, 0), (1, 0), (-2, 2)],
             ]
             ai_pawns = random.choice(ai_options)
 
@@ -222,7 +224,7 @@ class NonagaGame:
         elif self.silver_disc is not None and cell == self.silver_disc:
             self.silver_disc = None
             self.silver_respawn_counter = self.config.respawn_delay_turns
-            self.special_move_edge_only = True
+            self.special_remove_any = True
 
 
     def advance_special_respawns(self):
@@ -268,7 +270,7 @@ class NonagaGame:
         self.gold_respawn_counter = 0
         self.silver_respawn_counter = 0
         self.extra_turn_active = False
-        self.special_move_edge_only = False
+        self.special_remove_any = False
 
         if self.config.control_mode:
             self.spawn_gold_disc()
@@ -316,6 +318,11 @@ class NonagaGame:
         for cell in self.occupied:
             if cell in pawnset:
                 continue
+
+            if self.special_remove_any:
+                out.add(cell)
+                continue
+
             q, r = parse_key(cell)
             open_sides = 0
             for dq, dr in DIRS:
@@ -323,6 +330,7 @@ class NonagaGame:
                     open_sides += 1
             if open_sides > 0:
                 out.add(cell)
+
         return out
 
     def can_place_at(self, pos: Axial) -> bool:
@@ -354,8 +362,6 @@ class NonagaGame:
                     continue
 
                 if self.can_place_at((q, r)):
-                    if self.special_move_edge_only and not self.is_edge_cell(cell_key):
-                        continue
                     out.add(cell_key)
 
         return out
@@ -401,15 +407,20 @@ class NonagaGame:
         return None
 
     def check_any_win(self) -> Optional[str]:
-        if self.config.allow_normal_connection_win:
-            if self.is_win("A"):
-                return "A"
-            if self.is_win("B"):
-                return "B"
+        if self.config.survival_mode:
+            if self.is_win(self.ai_player):
+                return self.ai_player
 
-        winner = self.check_survival_win()
-        if winner is not None:
-            return winner
+            winner = self.check_survival_win()
+            if winner is not None:
+                return winner
+
+            return None
+
+        if self.is_win("A"):
+            return "A"
+        if self.is_win("B"):
+            return "B"
 
         return None
 
@@ -452,7 +463,7 @@ class NonagaGame:
         self.advance_special_respawns()
 
         # Silver effect lasts only for the turn it was earned
-        self.special_move_edge_only = False
+        self.special_remove_any = False
 
         self.phase = Phase.MOVE_PAWN
         self.recompute()
