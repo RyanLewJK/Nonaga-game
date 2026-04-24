@@ -167,4 +167,4 @@ if __name__ == "__main__":
     print("OLD from:", choose_old.__module__)
     print("NEW from:", choose_new.__module__)
 
-    run_benchmark(depth=2, topk=6, repeats=1)
+    run_benchmark(depth=2, topk=4, repeats=1)
