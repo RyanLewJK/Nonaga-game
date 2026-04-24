@@ -41,6 +41,33 @@ def clone_game(g: NonagaGame) -> NonagaGame:
     ng.valid_placements = set()
     ng.history = []
 
+    # fields now required by current game_state.py
+    ng.config = g.config
+    ng.time_left = dict(getattr(g, "time_left", {"A": 300.0, "B": 300.0}))
+    ng.winner = getattr(g, "winner", None)
+
+    ng.human_player = getattr(g, "human_player", "A")
+    ng.ai_player = getattr(g, "ai_player", "B")
+    ng.survival_turn_count = getattr(g, "survival_turn_count", 0)
+
+    ng.gold_disc = getattr(g, "gold_disc", None)
+    ng.silver_disc = getattr(g, "silver_disc", None)
+    ng.gold_respawn_counter = getattr(g, "gold_respawn_counter", 0)
+    ng.silver_respawn_counter = getattr(g, "silver_respawn_counter", 0)
+
+    ng.special_remove_any = getattr(g, "special_remove_any", False)
+
+    ng.gold_move_enemy_active = getattr(g, "gold_move_enemy_active", False)
+    ng.gold_movable_enemy_indices = list(getattr(g, "gold_movable_enemy_indices", []))
+    ng.gold_valid_enemy_moves = list(getattr(g, "gold_valid_enemy_moves", []))
+    ng.gold_selected_enemy_idx = getattr(g, "gold_selected_enemy_idx", None)
+
+    ng.last_action_text = ""
+    ng.last_action_timer = 0.0
+
+    ng.removed_was_gold = False
+    ng.removed_was_silver = False
+
     return ng
 
 
