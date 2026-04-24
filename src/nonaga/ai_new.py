@@ -224,8 +224,8 @@ def generate_turns(game, player, top_k_placements=6, root=False):
             placement_limit = min(top_k_placements, 3)
     else:
         if root:
-            endpoint_limit = 3
-            removal_limit = 6
+            endpoint_limit = 2
+            removal_limit = 4
             placement_limit = max(top_k_placements, 12)
         else:
             endpoint_limit = 2
@@ -239,7 +239,9 @@ def generate_turns(game, player, top_k_placements=6, root=False):
 
         for target in endpoints:
             g1 = clone_game(game)
+            g1.current = player
             g1.pawns[player][pawn_i] = target
+            g1.handle_special_landing(player, target)
 
             removals = list(g1.compute_valid_removals())
             removals.sort(key=lambda rem: removal_score(g1, player, rem), reverse=True)
@@ -251,6 +253,7 @@ def generate_turns(game, player, top_k_placements=6, root=False):
                 if rem_key not in g2.occupied:
                     continue
 
+                g2.removable = rem_key
                 g2.occupied.remove(rem_key)
 
                 placements = list(g2.compute_valid_placements())
@@ -299,6 +302,12 @@ def apply_turn(game, player, turn):
     game.current = player
     game.pawns[player][pawn_i] = target
     game.handle_special_landing(player, target)
+
+    winner = game.check_any_win()
+    if winner is not None:
+        game.winner = winner
+        game.phase = "GAME_OVER"
+        return
 
     removed_was_gold = (rem_key == game.gold_disc)
     removed_was_silver = (rem_key == game.silver_disc)
@@ -408,6 +417,44 @@ def minimax(game, depth, alpha, beta, to_move, ai_player, top_k_placements=12):
             TT[key] = best
         return best
 
+def find_immediate_win(game, ai_player):
+    """
+    Exhaustive one-pawn-move scan for immediate wins.
+    This avoids pruning hiding a winning move.
+    """
+    for pawn_i, pawn_pos in enumerate(game.pawns[ai_player]):
+        endpoints = game.pawn_moves_from(pawn_pos)
+
+        for target in endpoints:
+            g1 = clone_game(game)
+            g1.current = ai_player
+            g1.pawns[ai_player][pawn_i] = target
+            g1.handle_special_landing(ai_player, target)
+
+            # Check if the pawn move itself creates a win
+            if g1.check_any_win() == ai_player:
+                removals = list(g1.compute_valid_removals())
+
+                for rem_key in removals:
+                    g2 = clone_game(g1)
+
+                    if rem_key not in g2.occupied:
+                        continue
+
+                    g2.removable = rem_key
+                    g2.occupied.remove(rem_key)
+
+                    placements = list(g2.compute_valid_placements())
+
+                    for place_key in placements:
+                        if place_key == rem_key:
+                            continue
+
+                        print("Immediate winning move found:", (pawn_i, target, rem_key, place_key))
+                        return (pawn_i, target, rem_key, place_key)
+
+    return None
+
 
 def choose_ai_turn_at_depth(game, ai_player, depth, top_k_placements=6):
     """Choose best move at one fixed search depth."""
@@ -446,27 +493,23 @@ def choose_ai_turn(game, ai_player, depth=2, top_k_placements=8):
     """Return best full-turn action for ai_player, or None if no moves."""
     TT.clear()
 
+    winning_turn = find_immediate_win(game, ai_player)
+    if winning_turn is not None:
+        return winning_turn
+
     if game.config.variant == "CONTROL":
         return choose_ai_turn_control(game, ai_player)
 
-    use_wide_root = (game.config.variant not in ("CONTROL", "MEGA"))
     root_turns = generate_turns(
         game,
         ai_player,
         top_k_placements=top_k_placements,
-        root=use_wide_root
+        root=False
     )
+
     if not root_turns:
         return None
 
-    for t in root_turns:
-        g2 = clone_game(game)
-        apply_turn(g2, ai_player, t)
-        if g2.check_any_win() == ai_player:
-            print("Immediate winning move found:", t)
-            return t
-
-    # 2. Iterative deepening over the tighter search generator.
     best_turn = None
     for d in range(1, depth + 1):
         turn = choose_ai_turn_at_depth(game, ai_player, d, top_k_placements)

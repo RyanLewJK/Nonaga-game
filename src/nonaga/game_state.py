@@ -551,6 +551,17 @@ class NonagaGame:
                 if target in self.valid_moves:
                     self.pawns[self.current][self.selected_idx] = target
                     self.handle_special_landing(self.current, target)
+
+                    winner = self.check_any_win()
+                    if winner is not None:
+                        self.winner = winner
+                        self.phase = Phase.GAME_OVER
+                        self.selected_idx = None
+                        self.valid_moves = []
+                        self.valid_removals = set()
+                        self.valid_placements = set()
+                        return
+
                     self.selected_idx = None
                     self.valid_moves = []
                     self.phase = Phase.PICK_REMOVE

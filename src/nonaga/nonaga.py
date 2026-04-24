@@ -133,7 +133,7 @@ def run_game(choice):
 
     def resolve_ai_gold_powerup():
         opponent = HUMAN_PLAYER
-
+        print("AI resolving GOLD powerup")
         best_idx = None
         best_target = None
         best_score = -10**9
@@ -158,7 +158,7 @@ def run_game(choice):
             game.set_action_text("AI used GOLD to move your pawn!")
         else:
             game.set_action_text("AI activated GOLD, but no pawn could move.")
-
+        print("AI moved human pawn:", best_idx, best_target)
         winner = game.check_any_win()
         if winner is not None:
             game.winner = winner
@@ -360,37 +360,42 @@ def run_game(choice):
 
                     landed_on_gold = game.gold_disc is not None and k(target) == game.gold_disc
                     landed_on_silver = game.silver_disc is not None and k(target) == game.silver_disc
+                    print("AI landed_on_gold:", landed_on_gold)
+                    print("AI landed_on_silver:", landed_on_silver)
 
                     game.pawns[AI_PLAYER][pawn_i] = target
                     game.handle_special_landing(AI_PLAYER, target)
 
-                    if landed_on_gold:
-                        game.set_action_text("AI activated GOLD!")
-                    elif landed_on_silver:
-                        game.set_action_text("AI activated SILVER!")
+                    game.pawns[AI_PLAYER][pawn_i] = target
+                    game.handle_special_landing(AI_PLAYER, target)
 
-                    removed_was_gold = (rem_key == game.gold_disc)
-                    removed_was_silver = (rem_key == game.silver_disc)
+                    winner = game.check_any_win()
+                    if winner is not None:
+                        game.winner = winner
+                        game.phase = Phase.GAME_OVER
+                    else:
+                        removed_was_gold = (rem_key == game.gold_disc)
+                        removed_was_silver = (rem_key == game.silver_disc)
 
-                    if rem_key in game.occupied:
-                        game.occupied.remove(rem_key)
+                        if rem_key in game.occupied:
+                            game.occupied.remove(rem_key)
 
-                    if removed_was_gold:
-                        game.gold_disc = None
-                    if removed_was_silver:
-                        game.silver_disc = None
+                        if removed_was_gold:
+                            game.gold_disc = None
+                        if removed_was_silver:
+                            game.silver_disc = None
 
-                    game.occupied.add(place_key)
+                        game.occupied.add(place_key)
 
-                    if removed_was_gold:
-                        game.gold_disc = place_key
-                    if removed_was_silver:
-                        game.silver_disc = place_key
+                        if removed_was_gold:
+                            game.gold_disc = place_key
+                        if removed_was_silver:
+                            game.silver_disc = place_key
 
-                    game.end_turn_after_placement(place_key)
+                        game.end_turn_after_placement(place_key)
 
-                    if game.phase == "GOLD_MOVE_ENEMY":
-                        resolve_ai_gold_powerup()
+                        if game.phase == "GOLD_MOVE_ENEMY":
+                            resolve_ai_gold_powerup()
 
                     if DEBUG_AI:
                         print("AI: done. New current:", game.current, "phase:", game.phase)
