@@ -288,6 +288,7 @@ def run_game(choice):
                 ai_running = False
                 ai_result = None
                 ai_error = None
+                ai_result_ready=False
                 ai_active_job_id = None
                 ai_debug_once = False
                 game.reset()
@@ -332,7 +333,21 @@ def run_game(choice):
         if not pause_menu_open and ai_result_ready:
             ai_debug_once = False
 
-            if ai_start_time is not None and (time.time() - ai_start_time) < MIN_AI_THINK_TIME:
+            is_winning_move = False
+
+            if ai_result is not None:
+                test_game = clone_game(game)
+                pawn_i, target, rem_key, place_key = ai_result
+                test_game.pawns[AI_PLAYER][pawn_i] = target
+                test_game.current = AI_PLAYER
+                if test_game.check_any_win() == AI_PLAYER:
+                    is_winning_move = True
+
+            if (
+                not is_winning_move
+                and ai_start_time is not None
+                and (time.time() - ai_start_time) < MIN_AI_THINK_TIME
+            ):
                 continue
 
             if game.phase != Phase.GAME_OVER and game.current == AI_PLAYER:
@@ -362,9 +377,6 @@ def run_game(choice):
                     landed_on_silver = game.silver_disc is not None and k(target) == game.silver_disc
                     print("AI landed_on_gold:", landed_on_gold)
                     print("AI landed_on_silver:", landed_on_silver)
-
-                    game.pawns[AI_PLAYER][pawn_i] = target
-                    game.handle_special_landing(AI_PLAYER, target)
 
                     game.pawns[AI_PLAYER][pawn_i] = target
                     game.handle_special_landing(AI_PLAYER, target)
