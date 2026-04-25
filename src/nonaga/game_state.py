@@ -50,8 +50,12 @@ class NonagaGame:
     ):
         self.config = config if config is not None else classic_config()
 
-        self.human_player = human_player
-        self.ai_player = ai_player
+        if self.config.survival_mode:
+            self.human_player = "A"
+            self.ai_player = "B"
+        else:
+            self.human_player = human_player
+            self.ai_player = ai_player
 
         default_time = 300.0
         if self.config.turn_time_limit is not None:
@@ -183,22 +187,21 @@ class NonagaGame:
     def _initial_pawns(self) -> Dict[str, List[Axial]]:
         # Survival mode: human has 2 pawns, AI has 3 with 2 already together
         if self.config.survival_mode:
-            human_side = self.human_player
-            ai_side = self.ai_player
-
             human_pawns = [(2, 0), (0, 2)]
 
             ai_options = [
                 [(-2, 0), (-1, 0), (2, -2)],
-                [(0, -2), (1, -2), (-2, 2)],
-                [(2, 0), (1, 0), (-2, 2)],
+                [(1, -1), (1, 1), (-2, 2)],
+                [(-2, 0), (-1, 1), (1, -2)],
+                [(-1, 0), (1, -1), (-2, 2)]
             ]
+
             ai_pawns = random.choice(ai_options)
 
-            pawns = {"A": [], "B": []}
-            pawns[human_side] = human_pawns
-            pawns[ai_side] = ai_pawns
-            return pawns
+            return {
+                "A": human_pawns,
+                "B": ai_pawns
+            }
 
         # Standard board
         if self.config.board_radius == 2:
@@ -304,7 +307,7 @@ class NonagaGame:
 
         self.pawns = self._initial_pawns()
 
-        self.current = "A"
+        self.current = self.human_player if self.config.survival_mode else "A"
         self.phase = Phase.MOVE_PAWN
         self.selected_idx = None
         self.removable = None
@@ -546,22 +549,11 @@ class NonagaGame:
                 self.valid_moves = self.pawn_moves_from(self.pawns[self.current][idx])
                 return
 
-            if self.selected_idx is not None:
+            if self.selected_idx is not None and self.selected_idx >= 0:
                 target = parse_key(cell_key)
                 if target in self.valid_moves:
                     self.pawns[self.current][self.selected_idx] = target
                     self.handle_special_landing(self.current, target)
-
-                    winner = self.check_any_win()
-                    if winner is not None:
-                        self.winner = winner
-                        self.phase = Phase.GAME_OVER
-                        self.selected_idx = None
-                        self.valid_moves = []
-                        self.valid_removals = set()
-                        self.valid_placements = set()
-                        return
-
                     self.selected_idx = None
                     self.valid_moves = []
                     self.phase = Phase.PICK_REMOVE

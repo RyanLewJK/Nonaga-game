@@ -228,7 +228,22 @@ def run_game(choice):
             if DEBUG_EVENTS and ev.type in (pygame.MOUSEBUTTONDOWN, pygame.KEYDOWN):
                 print("EVENT:", ev)
 
+            # ---------------- KEYBOARD INPUT ----------------
             if ev.type == pygame.KEYDOWN:
+
+                # Restart
+                if ev.key == pygame.K_r:
+                    ai_running = False
+                    ai_result = None
+                    ai_error = None
+                    ai_result_ready = False
+                    ai_active_job_id = None
+                    ai_debug_once = False
+                    ai_start_time = None
+                    game.reset()
+                    continue
+
+                # Cancel selection
                 if ev.key == pygame.K_x:
                     if game.phase == Phase.MOVE_PAWN and game.selected_idx is not None:
                         game.cancel_selection()
@@ -238,27 +253,15 @@ def run_game(choice):
                         game.cancel_selection()
                         continue
 
+                # Pause menu only opens with ESC
                 if ev.key == pygame.K_ESCAPE:
                     if pause_menu_open:
                         pause_menu_open = False
-                        continue
-
-                    if game.phase != Phase.GAME_OVER:
+                    elif game.phase != Phase.GAME_OVER:
                         pause_menu_open = True
-                        continue
-
-                if game.phase == Phase.MOVE_PAWN and game.selected_idx is not None:
-                    game.cancel_selection()
                     continue
 
-                if game.phase == Phase.PICK_PLACE and game.removable is not None:
-                    game.cancel_selection()
-                    continue
-
-                if game.phase != Phase.GAME_OVER:
-                    pause_menu_open = True
-                    continue
-
+            # ---------------- PAUSE MENU INPUT ----------------
             if pause_menu_open:
                 if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                     mx, my = ev.pos
@@ -266,18 +269,45 @@ def run_game(choice):
 
                     if action == "RESUME":
                         pause_menu_open = False
+
                     elif action == "MENU":
                         shutdown_ai_worker()
                         return "MENU"
+
                     elif action == "SETTINGS":
                         print("Settings not implemented yet")
+
                 continue
 
-            if single_player and (game.current != HUMAN_PLAYER or ai_running) and game.phase != Phase.GAME_OVER:
+            # ---------------- BLOCK HUMAN DURING AI TURN ----------------
+            if (
+                single_player
+                and (game.current != HUMAN_PLAYER or ai_running)
+                and game.phase != Phase.GAME_OVER
+            ):
                 if DEBUG_AI and ev.type == pygame.MOUSEBUTTONDOWN:
                     print("Human clicked during AI turn (ignored).")
                 continue
 
+            # ---------------- RIGHT-CLICK ENEMY MOVE PREVIEW ----------------
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 3:
+                cell_key = input_handler.hit_test_disc(*ev.pos)
+
+                if cell_key is not None:
+                    enemy = "B" if game.current == "A" else "A"
+                    idx = game.pawn_index_at(enemy, cell_key)
+
+                    if idx is not None:
+                        # -1 means preview mode, not a real selected pawn
+                        game.selected_idx = -1
+                        game.valid_moves = game.pawn_moves_from(game.pawns[enemy][idx])
+                    else:
+                        game.selected_idx = None
+                        game.valid_moves = []
+
+                continue
+
+            # ---------------- NORMAL INPUT ----------------
             result = input_handler.handle_event(ev)
 
             if result == "MENU":
@@ -288,9 +318,10 @@ def run_game(choice):
                 ai_running = False
                 ai_result = None
                 ai_error = None
-                ai_result_ready=False
+                ai_result_ready = False
                 ai_active_job_id = None
                 ai_debug_once = False
+                ai_start_time = None
                 game.reset()
 
         # Poll worker result queue

@@ -395,9 +395,7 @@ class MenuUI:
             self.state = MenuUI.SINGLE
 
         if self.card_survival.handle(mouse_pos, mouse_down):
-            self.choice.mode = "SINGLE"
-            self.choice.variant = "SURVIVAL"
-            self.state = MenuUI.SINGLE
+            return "START_SURVIVAL"
 
         if self.btn_back_modes.handle(mouse_pos, mouse_down):
             self.state = MenuUI.PLAY
@@ -538,6 +536,15 @@ class MenuUI:
                     variant="CLASSIC",
                     config=classic_config()
                 )
+
+            if action == "START_SURVIVAL":
+                return MenuChoice(
+                    mode="SINGLE",
+                    side="A",
+                    variant="SURVIVAL",
+                    config=survival_config()
+                )
+
 
             if action == "START_SINGLE":
                 if self.choice.variant == "CLASSIC":
