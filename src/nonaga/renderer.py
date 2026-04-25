@@ -227,7 +227,13 @@ class Renderer:
         if game.blocked:
             self.draw_text(f"Blocked: {game.blocked}", 14, 110, self.font, UI_MUTED)
 
-        self.draw_text("R: Restart   X: Cancel   Esc: Menu", 14, SCREEN_H - 28, self.font, UI_MUTED)
+        self.draw_text(
+            "R: Restart   X: Cancel   Esc: Menu   Right-click: Preview enemy moves",
+            14,
+            SCREEN_H - 28,
+            self.font,
+            UI_MUTED
+        )
 
         if game.phase == Phase.GAME_OVER:
 
