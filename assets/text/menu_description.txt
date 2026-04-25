@@ -1,0 +1,7 @@
+CLASSIC=Original rules|5-minute timer|Standard match
+MODES=Special variants|Unique objectives|Extra challenges
+ONE_PLAYER=Play against AI|Choose your side
+TWO_PLAYER=Local multiplayer|Two players, one device
+CONTROL=Power discs|Capture key tiles|Special Powerups
+MEGA=Larger board|Four pawns each|Bigger strategy
+SURVIVAL=Outlast the AI|Survive 15 turns|Start on red side
