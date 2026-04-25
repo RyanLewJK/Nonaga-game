@@ -200,7 +200,6 @@ def generate_turns(game, player, top_k_placements=6, root=False):
     root=False:
       tighter pruning for minimax search
     """
-    print("generate_turns called:", game.config.variant, "root=", root)
     turns = []
     opp = "B" if player == "A" else "A"
 
@@ -215,13 +214,13 @@ def generate_turns(game, player, top_k_placements=6, root=False):
             placement_limit = 2
     elif game.config.variant == "MEGA":
         if root:
+            endpoint_limit = 3
+            removal_limit = 4
+            placement_limit = min(top_k_placements, 6)
+        else:
             endpoint_limit = 2
             removal_limit = 3
-            placement_limit = min(top_k_placements, 4)
-        else:
-            endpoint_limit = 1
-            removal_limit = 2
-            placement_limit = min(top_k_placements, 3)
+            placement_limit = min(top_k_placements, 5)
     else:
         if root:
             endpoint_limit = 2

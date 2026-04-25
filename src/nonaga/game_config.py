@@ -51,7 +51,7 @@ def mega_config() -> GameConfig:
         pawns_b=4,
         allow_normal_connection_win=True,
         ai_depth=2,
-        ai_top_k=8,
+        ai_top_k=4,
         turn_time_limit = 420
     )
 
