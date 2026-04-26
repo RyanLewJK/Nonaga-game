@@ -14,6 +14,34 @@ from src.nonaga.hexgrid import k
 
 from src.nonaga.ai_new import choose_ai_turn, clone_game
 
+class SoundFX:
+    def __init__(self):
+        self.enabled = True
+
+        try:
+            self.select = pygame.mixer.Sound("assets/sfx/select.wav")
+            self.move = pygame.mixer.Sound("assets/sfx/move.wav")
+            self.powerup = pygame.mixer.Sound("assets/sfx/powerup.wav")
+
+            self.select.set_volume(0.45)
+            self.move.set_volume(0.45)
+            self.powerup.set_volume(0.55)
+
+        except pygame.error as e:
+            print("SoundFX could not be loaded:", e)
+            self.enabled = False
+
+    def play_select(self):
+        if self.enabled:
+            self.select.play()
+
+    def play_move(self):
+        if self.enabled:
+            self.move.play()
+
+    def play_powerup(self):
+        if self.enabled:
+            self.powerup.play()
 
 def ai_worker_loop(job_queue, result_queue):
     while True:
@@ -61,6 +89,7 @@ def run_game(choice):
     pygame.display.set_caption("Nonaga (Python/Pygame)")
     clock = pygame.time.Clock()
     pause_menu_open = False
+    sfx = SoundFX()
     show_game_over_popup = True
 
     single_player = (choice.mode == "SINGLE")
@@ -309,7 +338,7 @@ def run_game(choice):
                     idx = game.pawn_index_at(enemy, cell_key)
 
                     if idx is not None:
-                        # -1 means preview mode, not a real selected pawn
+                        sfx.play_select()
                         game.selected_idx = -1
                         game.valid_moves = game.pawn_moves_from(game.pawns[enemy][idx])
                     else:
@@ -319,7 +348,66 @@ def run_game(choice):
                 continue
 
             # ---------------- NORMAL INPUT ----------------
+            before_pawns = {
+                "A": list(game.pawns["A"]),
+                "B": list(game.pawns["B"]),
+            }
+
+            before_occupied = set(game.occupied)
+            before_gold_disc = game.gold_disc
+            before_silver_disc = game.silver_disc
+            before_phase = game.phase
+
+            landed_on_powerup = False
+
+            # Human click/select sound
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                clicked_cell = input_handler.hit_test_disc(*ev.pos)
+
+                if clicked_cell is not None:
+                    if game.phase in (Phase.MOVE_PAWN, Phase.PICK_REMOVE, "GOLD_MOVE_ENEMY"):
+                        sfx.play_select()
+
+                    if (
+                        game.config.control_mode
+                        and game.phase == Phase.MOVE_PAWN
+                        and game.selected_idx is not None
+                        and (clicked_cell == before_gold_disc or clicked_cell == before_silver_disc)
+                    ):
+                        landed_on_powerup = True
+
             result = input_handler.handle_event(ev)
+
+            after_pawns = {
+                "A": list(game.pawns["A"]),
+                "B": list(game.pawns["B"]),
+            }
+
+            after_occupied = set(game.occupied)
+            after_phase = game.phase
+
+            pawn_moved = before_pawns != after_pawns
+
+            # Disc was only selected/removed, not fully relocated yet
+            disc_removed_for_relocation = (
+                before_phase == Phase.PICK_REMOVE
+                and after_phase == Phase.PICK_PLACE
+            )
+
+            # Disc was placed in its new position
+            disc_relocated_finished = (
+                before_phase == Phase.PICK_PLACE
+                and before_occupied != after_occupied
+            )
+
+            if pawn_moved or disc_relocated_finished:
+                sfx.play_move()
+
+            gold_disappeared = before_gold_disc is not None and game.gold_disc is None
+            silver_disappeared = before_silver_disc is not None and game.silver_disc is None
+
+            if game.config.control_mode and (landed_on_powerup or gold_disappeared or silver_disappeared):
+                sfx.play_powerup()
 
             if result == "MENU":
                 shutdown_ai_worker()
@@ -432,6 +520,11 @@ def run_game(choice):
                     game.pawns[AI_PLAYER][pawn_i] = target
                     game.handle_special_landing(AI_PLAYER, target)
 
+                    sfx.play_move()
+
+                    if landed_on_gold or landed_on_silver:
+                        sfx.play_powerup()
+
                     winner = game.check_any_win()
                     if winner is not None:
                         game.winner = winner
@@ -449,6 +542,7 @@ def run_game(choice):
                             game.silver_disc = None
 
                         game.occupied.add(place_key)
+                        sfx.play_move()
 
                         if removed_was_gold:
                             game.gold_disc = place_key
@@ -475,7 +569,9 @@ def run_game(choice):
 
 
 def main():
+    pygame.mixer.pre_init(44100, -16, 2, 512)
     pygame.init()
+    pygame.mixer.init()
 
     while True:
         screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
