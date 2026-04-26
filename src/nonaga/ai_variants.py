@@ -138,21 +138,19 @@ def evaluate_control(game, ai_player: str) -> float:
 
     score = evaluate_classic(game, ai_player)
 
-    # Gold is highly valuable: prefer being near it and deny opponent access
     if game.gold_disc is not None:
         my_gold_dist = _distance_to_cell_key(game.pawns[ai_player], game.gold_disc)
         opp_gold_dist = _distance_to_cell_key(game.pawns[opp], game.gold_disc)
 
-        score += -18 * my_gold_dist
-        score += 10 * opp_gold_dist
+        score += -30 * my_gold_dist
+        score += 18 * opp_gold_dist
 
-    # Silver is useful, but less valuable than gold
     if game.silver_disc is not None:
         my_silver_dist = _distance_to_cell_key(game.pawns[ai_player], game.silver_disc)
         opp_silver_dist = _distance_to_cell_key(game.pawns[opp], game.silver_disc)
 
-        score += -12 * my_silver_dist
-        score += 6 * opp_silver_dist
+        score += -14 * my_silver_dist
+        score += 8 * opp_silver_dist
 
     # Reward currently active power-up states
     if getattr(game, "gold_move_enemy_active", False) and game.current == ai_player:

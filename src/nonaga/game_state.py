@@ -489,7 +489,7 @@ class NonagaGame:
 
         return None
 
-    def finish_turn(self):
+    def finish_turn(self, advance_respawns=True):
         previous_player = self.current
         self.current = "B" if self.current == "A" else "A"
 
@@ -501,7 +501,8 @@ class NonagaGame:
                 self.phase = Phase.GAME_OVER
                 return
 
-        self.advance_special_respawns()
+        if advance_respawns:
+            self.advance_special_respawns()
 
         self.special_remove_any = False
 

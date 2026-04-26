@@ -204,7 +204,7 @@ def run_game(choice):
         game.gold_movable_enemy_indices = []
         game.gold_valid_enemy_moves = []
         game.gold_selected_enemy_idx = None
-        game.finish_turn()
+        game.finish_turn(advance_respawns=False)
 
     running = True
 
@@ -406,7 +406,7 @@ def run_game(choice):
             gold_disappeared = before_gold_disc is not None and game.gold_disc is None
             silver_disappeared = before_silver_disc is not None and game.silver_disc is None
 
-            if game.config.control_mode and (landed_on_powerup or gold_disappeared or silver_disappeared):
+            if game.config.control_mode and landed_on_powerup:
                 sfx.play_powerup()
 
             if result == "MENU":
@@ -514,8 +514,9 @@ def run_game(choice):
 
                     landed_on_gold = game.gold_disc is not None and k(target) == game.gold_disc
                     landed_on_silver = game.silver_disc is not None and k(target) == game.silver_disc
-                    print("AI landed_on_gold:", landed_on_gold)
-                    print("AI landed_on_silver:", landed_on_silver)
+
+                    removed_was_gold = (rem_key == game.gold_disc)
+                    removed_was_silver = (rem_key == game.silver_disc)
 
                     game.pawns[AI_PLAYER][pawn_i] = target
                     game.handle_special_landing(AI_PLAYER, target)
@@ -530,8 +531,6 @@ def run_game(choice):
                         game.winner = winner
                         game.phase = Phase.GAME_OVER
                     else:
-                        removed_was_gold = (rem_key == game.gold_disc)
-                        removed_was_silver = (rem_key == game.silver_disc)
 
                         if rem_key in game.occupied:
                             game.occupied.remove(rem_key)

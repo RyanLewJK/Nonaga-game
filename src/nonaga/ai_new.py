@@ -205,13 +205,13 @@ def generate_turns(game, player, top_k_placements=6, root=False):
 
     if game.config.variant == "CONTROL":
         if root:
-            endpoint_limit = 2
-            removal_limit = 2
-            placement_limit = 2
+            endpoint_limit = 3
+            removal_limit = 4
+            placement_limit = min(top_k_placements, 12)
         else:
-            endpoint_limit = 1
-            removal_limit = 2
-            placement_limit = 2
+            endpoint_limit = 2
+            removal_limit = 4
+            placement_limit = min(top_k_placements, 12)
     elif game.config.variant == "MEGA":
         if root:
             endpoint_limit = 3
@@ -522,7 +522,7 @@ def choose_ai_turn_control(game, ai_player):
     Fast greedy chooser for Control mode.
     No minimax; just score a small set of candidate full turns.
     """
-    turns = generate_turns(game, ai_player, top_k_placements=4, root=False)
+    turns = generate_turns(game, ai_player, top_k_placements=12, root=False)
     print("CONTROL candidate turns:", len(turns))
 
     if not turns:
