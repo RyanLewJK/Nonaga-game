@@ -1,0 +1,35 @@
+TITLE=How to Play
+
+BASIC RULES:
+Move one pawn in a straight line until it is blocked.
+Then relocate one empty edge disc.
+Place the removed disc so it touches at least 2 discs.
+Win by connecting all of your pawns into one cluster.
+
+CLASSIC:
+Standard Nonaga rules.
+Each player has 3 pawns.
+Both players have a 5-minute timer.
+
+CONTROL:
+Special gold and silver discs appear on the board.
+Landing on gold lets you move an enemy pawn.
+Landing on silver lets you remove any empty disc.
+Use power discs to essentially control space.
+
+MEGA BOARD:
+Played on a larger board.
+Each player has 4 pawns instead of 3.
+Win by connecting all 4 of your pawns.
+
+SURVIVAL:
+You always play as Red.
+The AI plays as Blue.
+You have 2 pawns while the AI has 3.
+Survive for 15 turns before the AI connects its pawns.
+
+CONTROLS:
+R = Restart
+X = Cancel selection
+Esc = Open menu
+Right-click enemy pawn = Preview enemy moves

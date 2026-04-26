@@ -25,6 +25,29 @@ def load_menu_descriptions(path: str) -> dict:
 
     return descriptions
 
+def load_help_text(path: str):
+    title = "How to Play"
+    lines = []
+
+    try:
+        with open(path, "r", encoding="utf-8") as file:
+            for line in file:
+                line = line.rstrip("\n")
+
+                if line.startswith("TITLE="):
+                    title = line.split("=", 1)[1].strip()
+                else:
+                    lines.append(line)
+    except FileNotFoundError:
+        lines = [
+            "BASIC RULES:",
+            "Move one pawn in a straight line until it is blocked.",
+            "Relocate one empty edge disc.",
+            "Win by connecting all pawns into one cluster.",
+        ]
+
+    return title, lines
+
 # -------- Menu results --------
 @dataclass
 class MenuChoice:
@@ -176,11 +199,12 @@ class MenuUI:
         self.title_font = pygame.font.SysFont(None, 72)
         self.h2_font = pygame.font.SysFont(None, 32)
         self.font = pygame.font.SysFont(None, 28)
-        self.small = pygame.font.SysFont(None, 22)
+        self.small = pygame.font.SysFont(None, 20)
 
         self.state = MenuUI.MAIN
         self.choice = MenuChoice(mode="LOCAL")
 
+        self.help_title, self.help_lines = load_help_text("assets/text/how_to_play.txt")
         self.descriptions = load_menu_descriptions("assets/text/menu_description.txt")
 
         # -------- Main logo --------
@@ -515,9 +539,7 @@ class MenuUI:
             desc_surf = self.h2_font.render(desc, True, (210, 210, 210))
             self.screen.blit(desc_surf, desc_surf.get_rect(center=(rect.centerx, rect.y + 270)))
 
-            if selected:
-                sel_surf = self.font.render("Selected", True, (245, 245, 245))
-                self.screen.blit(sel_surf, sel_surf.get_rect(center=(rect.centerx, rect.y + 315)))
+            
 
             pygame.draw.rect(self.screen, border, rect, 3, border_radius=18)
 
@@ -556,28 +578,66 @@ class MenuUI:
         return None
 
     def draw_help(self, mouse_pos, mouse_down) -> Optional[str]:
-        self._draw_centered("How to Play", self.title_font, int(self.h * 0.16))
-        panel = pygame.Rect(self.w // 2 - 300, int(self.h * 0.28), 600, int(self.h * 0.52))
+        self._draw_centered(self.help_title, self.title_font, 70)
+
+        panel = pygame.Rect(self.w // 2 - 390, 125, 780, self.h - 220)
         self._panel(panel)
 
-        lines = [
-            "On your turn:",
-            "  1) Move a pawn (it slides in a straight line until blocked).",
-            "  2) Relocate a disc:",
-            "     - remove an empty edge disc",
-            "     - place it so it touches at least 2 discs",
-            "",
-            "Win by getting all your pawns into one connected cluster.",
-        ]
+        left_x = panel.x + 35
+        right_x = panel.centerx + 25
+        top_y = panel.y + 25
 
-        tx = panel.x + 24
-        ty = panel.y + 20
-        for i, line in enumerate(lines):
-            f = self.h2_font if i == 0 else self.small
-            color = (230, 230, 230) if i == 0 else (200, 200, 200)
-            surf = f.render(line, True, color)
-            self.screen.blit(surf, (tx, ty))
-            ty += 34 if i == 0 else 26
+        columns = {
+            "left": [],
+            "right": []
+        }
+
+        current_col = "left"
+
+        for line in self.help_lines:
+            clean = line.strip()
+
+            if clean in ("MEGA BOARD:", "SURVIVAL:", "CONTROLS:"):
+                current_col = "right"
+
+            columns[current_col].append(line)
+
+        def draw_lines(lines, x, y):
+            for line in lines:
+                clean = line.strip()
+
+                if clean == "":
+                    y += 12
+                    continue
+
+                is_heading = clean.endswith(":")
+
+                if is_heading:
+                    color = (245, 245, 245)
+                    font = self.font
+                    text = clean
+                    y += 6
+                else:
+                    color = (175, 175, 175)
+                    font = self.small
+                    text = "• " + clean
+
+                surf = font.render(text, True, color)
+                self.screen.blit(surf, (x, y))
+
+                y += 28 if is_heading else 22
+
+        draw_lines(columns["left"], left_x, top_y)
+        draw_lines(columns["right"], right_x, top_y)
+
+        # vertical divider inside help panel
+        pygame.draw.line(
+            self.screen,
+            (70, 70, 70),
+            (panel.centerx, panel.y + 20),
+            (panel.centerx, panel.bottom - 20),
+            2
+        )
 
         if self.btn_back_help.handle(mouse_pos, mouse_down):
             self.state = MenuUI.MAIN
