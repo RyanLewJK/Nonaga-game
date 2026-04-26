@@ -61,6 +61,7 @@ def run_game(choice):
     pygame.display.set_caption("Nonaga (Python/Pygame)")
     clock = pygame.time.Clock()
     pause_menu_open = False
+    show_game_over_popup = True
 
     single_player = (choice.mode == "SINGLE")
     HUMAN_PLAYER = choice.side
@@ -105,7 +106,12 @@ def run_game(choice):
         )
         ai_process.start()
 
-    renderer.draw(game, single_player=single_player, human_player=HUMAN_PLAYER)
+    renderer.draw(
+    game,
+    single_player=single_player,
+    human_player=HUMAN_PLAYER,
+    show_game_over_popup=show_game_over_popup
+    )
     pygame.display.flip()
     pygame.event.pump()
 
@@ -255,10 +261,15 @@ def run_game(choice):
 
                 # Pause menu only opens with ESC
                 if ev.key == pygame.K_ESCAPE:
+                    if game.phase == Phase.GAME_OVER and not show_game_over_popup:
+                        show_game_over_popup = True
+                        continue
+
                     if pause_menu_open:
                         pause_menu_open = False
                     elif game.phase != Phase.GAME_OVER:
                         pause_menu_open = True
+
                     continue
 
             # ---------------- PAUSE MENU INPUT ----------------
@@ -314,6 +325,9 @@ def run_game(choice):
                 shutdown_ai_worker()
                 return "MENU"
 
+            if result == "VIEW_BOARD":
+                show_game_over_popup = False
+
             if result == "RESTART":
                 ai_running = False
                 ai_result = None
@@ -322,6 +336,7 @@ def run_game(choice):
                 ai_active_job_id = None
                 ai_debug_once = False
                 ai_start_time = None
+                show_game_over_popup = True
                 game.reset()
 
         # Poll worker result queue
@@ -346,7 +361,12 @@ def run_game(choice):
 
                 ai_running = False
 
-        renderer.draw(game, single_player=single_player, human_player=HUMAN_PLAYER)
+        renderer.draw(
+            game,
+            single_player=single_player,
+            human_player=HUMAN_PLAYER,
+            show_game_over_popup=show_game_over_popup
+        )
 
         if pause_menu_open:
             renderer.draw_pause_menu()

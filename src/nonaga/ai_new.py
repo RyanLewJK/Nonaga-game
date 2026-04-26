@@ -522,7 +522,7 @@ def choose_ai_turn_control(game, ai_player):
     Fast greedy chooser for Control mode.
     No minimax; just score a small set of candidate full turns.
     """
-    turns = generate_turns(game, ai_player, top_k_placements=2, root=False)
+    turns = generate_turns(game, ai_player, top_k_placements=4, root=False)
     print("CONTROL candidate turns:", len(turns))
 
     if not turns:

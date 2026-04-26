@@ -52,21 +52,43 @@ class Renderer:
         self.you_win_img = pygame.image.load("assets/img/you_win.png").convert_alpha()
         self.you_lose_img = pygame.image.load("assets/img/you_lose.png").convert_alpha()
 
-        self.win_red_img = pygame.transform.smoothscale(self.win_red_img, (300, 100))
-        self.win_blue_img = pygame.transform.smoothscale(self.win_blue_img, (300, 100))
+        self.win_red_img = pygame.transform.smoothscale(self.win_red_img, (420, 140))
+        self.win_blue_img = pygame.transform.smoothscale(self.win_blue_img, (420, 140))
 
-        self.you_win_img = pygame.transform.smoothscale(self.you_win_img, (300, 100))
-        self.you_lose_img = pygame.transform.smoothscale(self.you_lose_img, (300, 100))
+        self.you_win_img = pygame.transform.smoothscale(self.you_win_img, (420, 140))
+        self.you_lose_img = pygame.transform.smoothscale(self.you_lose_img, (420, 140))
 
         self.btn_menu_img = pygame.image.load("assets/img/back_to_menu.png").convert_alpha()
         self.btn_menu_hover_img = pygame.image.load("assets/img/back_to_menu_hover.png").convert_alpha()
         self.btn_restart_img = pygame.image.load("assets/img/btn_restart.png").convert_alpha()
         self.btn_restart_hover_img = pygame.image.load("assets/img/btn_restart_hover.png").convert_alpha()
+        self.btn_view_board_img = pygame.image.load("assets/img/btn_view_board.png").convert_alpha()
+        self.btn_view_board_hover_img = pygame.image.load("assets/img/btn_view_board_hover.png").convert_alpha()
+        self.btn_resume_img = pygame.image.load("assets/img/btn_resume.png").convert_alpha()
+        self.btn_resume_hover_img = pygame.image.load("assets/img/btn_resume_hover.png").convert_alpha()
+        self.btn_pause_settings_img = pygame.image.load("assets/img/settings_btn.png").convert_alpha()
+        self.btn_pause_settings_hover_img = pygame.image.load("assets/img/settings_btn_hover.png").convert_alpha()
+        self.btn_pause_menu_img = pygame.image.load("assets/img/back_to_menu.png").convert_alpha()
+        self.btn_pause_menu_hover_img = pygame.image.load("assets/img/back_to_menu_hover.png").convert_alpha()
 
         self.btn_menu_img = pygame.transform.smoothscale(self.btn_menu_img, (140, 50))
         self.btn_restart_img = pygame.transform.smoothscale(self.btn_restart_img, (140, 50))
         self.btn_menu_hover_img = pygame.transform.smoothscale(self.btn_menu_hover_img, (140, 50))
         self.btn_restart_hover_img = pygame.transform.smoothscale(self.btn_restart_hover_img, (140, 50))
+        self.btn_view_board_img = pygame.transform.smoothscale(self.btn_view_board_img, (140, 50))
+        self.btn_view_board_hover_img = pygame.transform.smoothscale(self.btn_view_board_hover_img, (140, 50))
+
+        pause_btn_size = (240, 60)
+
+        self.btn_resume_img = pygame.transform.smoothscale(self.btn_resume_img, pause_btn_size)
+        self.btn_resume_hover_img = pygame.transform.smoothscale(self.btn_resume_hover_img, pause_btn_size)
+
+        self.btn_pause_settings_img = pygame.transform.smoothscale(self.btn_pause_settings_img, pause_btn_size)
+        self.btn_pause_settings_hover_img = pygame.transform.smoothscale(self.btn_pause_settings_hover_img, pause_btn_size)
+
+        self.btn_pause_menu_img = pygame.transform.smoothscale(self.btn_pause_menu_img, pause_btn_size)
+        self.btn_pause_menu_hover_img = pygame.transform.smoothscale(self.btn_pause_menu_hover_img, pause_btn_size)
+
 
     def player_label(self, player: str, single_player=False, human_player="A") -> str:
         if not single_player:
@@ -79,45 +101,42 @@ class Renderer:
 
     def draw_pause_menu(self):
         overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
+        overlay.fill((0, 0, 0, 190))
         self.screen.blit(overlay, (0, 0))
 
-        panel_w, panel_h = 320, 220
+        panel_w, panel_h = 430, 320
         panel_x = (SCREEN_W - panel_w) // 2
         panel_y = (SCREEN_H - panel_h) // 2
         panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
 
-        pygame.draw.rect(self.screen, (24, 24, 24), panel_rect, border_radius=20)
-        pygame.draw.rect(self.screen, (180, 180, 180), panel_rect, 2, border_radius=20)
+        pygame.draw.rect(self.screen, (24, 24, 24), panel_rect, border_radius=24)
+        pygame.draw.rect(self.screen, (190, 190, 190), panel_rect, 3, border_radius=24)
 
-        title = self.big.render("Paused", True, (245, 245, 245))
-        title_rect = title.get_rect(center=(panel_rect.centerx, panel_rect.y + 32))
+        title = self.big.render("PAUSED", True, (245, 245, 245))
+        title_rect = title.get_rect(center=(panel_rect.centerx, panel_rect.y + 55))
         self.screen.blit(title, title_rect)
 
-        btn_w, btn_h = 180, 42
-        gap = 14
-        start_x = panel_x + (panel_w - btn_w) // 2
-        start_y = panel_y + 70
+        btn_w, btn_h = 240, 60
+        gap = 18
+
+        start_x = panel_rect.centerx - btn_w // 2
+        start_y = panel_rect.y + 95
+
+        resume_rect = pygame.Rect(start_x, start_y, btn_w, btn_h)
+        settings_rect = pygame.Rect(start_x, start_y + btn_h + gap, btn_w, btn_h)
+        menu_rect = pygame.Rect(start_x, start_y + 2 * (btn_h + gap), btn_w, btn_h)
 
         mx, my = pygame.mouse.get_pos()
 
-        buttons = [
-            ("Resume", pygame.Rect(start_x, start_y, btn_w, btn_h)),
-            ("Settings", pygame.Rect(start_x, start_y + btn_h + gap, btn_w, btn_h)),
-            ("Main Menu", pygame.Rect(start_x, start_y + 2 * (btn_h + gap), btn_w, btn_h)),
-        ]
+        resume_img = self.btn_resume_hover_img if resume_rect.collidepoint(mx, my) else self.btn_resume_img
+        settings_img = self.btn_pause_settings_hover_img if settings_rect.collidepoint(mx, my) else self.btn_pause_settings_img
+        menu_img = self.btn_pause_menu_hover_img if menu_rect.collidepoint(mx, my) else self.btn_pause_menu_img
 
-        for text, rect in buttons:
-            hover = rect.collidepoint(mx, my)
-            fill = (90, 90, 90) if hover else (60, 60, 60)
+        self.screen.blit(resume_img, resume_rect)
+        self.screen.blit(settings_img, settings_rect)
+        self.screen.blit(menu_img, menu_rect)
 
-            pygame.draw.rect(self.screen, fill, rect, border_radius=12)
-            pygame.draw.rect(self.screen, (220, 220, 220), rect, 2, border_radius=12)
-
-            label = self.font.render(text, True, (255, 255, 255))
-            self.screen.blit(label, label.get_rect(center=rect.center))
-
-    def draw(self, game, single_player=False, human_player="A"):
+    def draw(self, game, single_player=False, human_player="A", show_game_over_popup=True):
         self.screen.fill(BG)
 
         if game.phase != Phase.GAME_OVER:
@@ -218,11 +237,16 @@ class Renderer:
 
         # Top-left info block
         self.draw_text(f"Phase: {phase_text}", 14, 20, self.big, (245, 245, 245))
-        self.draw_text(f"Mode: {game.config.variant}", 14, 48, self.font, UI_MUTED)
         self.draw_text("Red Time", 14, 58, self.font, (230, 70, 70))
         self.draw_text(game.format_time("A"), 140, 58, self.font, UI_TEXT)
         self.draw_text("Blue Time", 14, 84, self.font, (70, 140, 255))
         self.draw_text(game.format_time("B"), 140, 84, self.font, UI_TEXT)
+
+        self.mode_font = pygame.font.SysFont(None, 42)
+        mode_text = f"{game.config.variant}"
+        mode_surf = self.mode_font.render(mode_text, True, UI_MUTED)
+        mode_rect = mode_surf.get_rect(center=(SCREEN_W // 2, 40))
+        self.screen.blit(mode_surf, mode_rect)
 
         if game.blocked:
             self.draw_text(f"Blocked: {game.blocked}", 14, 110, self.font, UI_MUTED)
@@ -235,15 +259,15 @@ class Renderer:
             UI_MUTED
         )
 
-        if game.phase == Phase.GAME_OVER:
+        if game.phase == Phase.GAME_OVER and show_game_over_popup:
 
             # dark overlay
             overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 200))
             self.screen.blit(overlay, (0, 0))
 
-            # centered popup panel
-            panel_w, panel_h = 360, 200
+            # centered popup panel - larger version
+            panel_w, panel_h = 500, 280
             panel_x = (SCREEN_W - panel_w) // 2
             panel_y = (SCREEN_H - panel_h) // 2
             panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
@@ -263,15 +287,16 @@ class Renderer:
             win_rect = win_img.get_rect(center=(panel_rect.centerx, panel_rect.centery - 30))
             self.screen.blit(win_img, win_rect)
 
-            # two buttons side by side
-            btn_w, btn_h = 150, 50
-            gap = 20
-            total_w = btn_w * 2 + gap
+            # three buttons
+            btn_w, btn_h = 145, 50
+            gap = 16
+            total_w = btn_w * 3 + gap * 2
             start_x = panel_rect.centerx - total_w // 2
-            btn_y = panel_rect.bottom - 75
+            btn_y = panel_rect.bottom - 85
 
             menu_rect = pygame.Rect(start_x, btn_y, btn_w, btn_h)
-            restart_rect = pygame.Rect(start_x + btn_w + gap, btn_y, btn_w, btn_h)
+            view_rect = pygame.Rect(start_x + btn_w + gap, btn_y, btn_w, btn_h)
+            restart_rect = pygame.Rect(start_x + 2 * (btn_w + gap), btn_y, btn_w, btn_h)
 
             mx, my = pygame.mouse.get_pos()
 
@@ -279,4 +304,8 @@ class Renderer:
             restart_img = self.btn_restart_hover_img if restart_rect.collidepoint(mx, my) else self.btn_restart_img
 
             self.screen.blit(menu_img, menu_rect)
+
+            view_img = self.btn_view_board_hover_img if view_rect.collidepoint(mx, my) else self.btn_view_board_img
+            self.screen.blit(view_img, view_rect)
+
             self.screen.blit(restart_img, restart_rect)
