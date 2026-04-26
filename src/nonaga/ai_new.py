@@ -518,12 +518,9 @@ def choose_ai_turn(game, ai_player, depth=2, top_k_placements=8):
     return best_turn
 
 def choose_ai_turn_control(game, ai_player):
-    """
-    Fast greedy chooser for Control mode.
-    No minimax; just score a small set of candidate full turns.
-    """
-    turns = generate_turns(game, ai_player, top_k_placements=12, root=False)
-    print("CONTROL candidate turns:", len(turns))
+    opp = "B" if ai_player == "A" else "A"
+
+    turns = generate_turns(game, ai_player, top_k_placements=8, root=False)
 
     if not turns:
         return None
@@ -531,15 +528,25 @@ def choose_ai_turn_control(game, ai_player):
     best_turn = None
     best_val = -math.inf
 
-    for i, t in enumerate(turns):
+    for t in turns:
         g2 = clone_game(game)
         apply_turn(g2, ai_player, t)
 
-        # immediate win check
         if g2.check_any_win() == ai_player:
             return t
 
-        val = evaluate(g2, ai_player)
+        # Let opponent make one greedy response
+        opp_turns = generate_turns(g2, opp, top_k_placements=3, root=False)
+
+        if not opp_turns:
+            val = evaluate(g2, ai_player)
+        else:
+            worst_val = math.inf
+            for ot in opp_turns:
+                g3 = clone_game(g2)
+                apply_turn(g3, opp, ot)
+                worst_val = min(worst_val, evaluate(g3, ai_player))
+            val = worst_val
 
         if val > best_val:
             best_val = val

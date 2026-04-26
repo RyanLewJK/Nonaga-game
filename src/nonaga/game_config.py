@@ -81,6 +81,6 @@ def control_config() -> GameConfig:
         gold_enabled=True,
         silver_enabled=True,
         respawn_delay_turns=2,
-        ai_depth=3,
+        ai_depth=2,
         ai_top_k=6
     )
