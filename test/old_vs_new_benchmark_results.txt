@@ -1,0 +1,14 @@
+OLD from: src.nonaga.ai
+NEW from: src.nonaga.ai_new
+Benchmark settings: depth=2, top_k_placements=4, repeats=3
+================================================================================
+
+Position: opening_A | Player to move: A
+OLD -> turn=(0, (-1, 0), '1,1', '-1,-2') | avg=4.416s | min=4.362s | max=4.461s
+NEW -> turn=(0, (-1, 0), '1,1', '-1,-2') | avg=4.993s | min=3.939s | max=5.629s
+Same move: True
+
+Position: opening_B | Player to move: B
+OLD -> turn=(0, (-1, 1), '1,-2', '-2,-1') | avg=5.989s | min=5.892s | max=6.120s
+NEW -> turn=(0, (-1, 1), '1,-2', '-2,-1') | avg=5.157s | min=5.091s | max=5.200s
+Same move: True

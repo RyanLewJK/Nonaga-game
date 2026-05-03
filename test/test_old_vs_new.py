@@ -113,7 +113,7 @@ def benchmark_one(label, choose_fn, clone_fn, game, player, depth, topk, repeats
     }
 
 
-def run_benchmark(depth=2, topk=6, repeats=1):
+def run_benchmark(depth=2, topk=4, repeats=3):
     positions = build_test_positions()
 
     print(f"Benchmark settings: depth={depth}, top_k_placements={topk}, repeats={repeats}")
@@ -167,4 +167,4 @@ if __name__ == "__main__":
     print("OLD from:", choose_old.__module__)
     print("NEW from:", choose_new.__module__)
 
-    run_benchmark(depth=2, topk=4, repeats=1)
+    run_benchmark(depth=2, topk=4, repeats=3)
