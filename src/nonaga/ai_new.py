@@ -287,7 +287,6 @@ def generate_turns(game, player, top_k_placements=6, root=False):
                 for place_key in placements[:placement_limit]:
                     turns.append((pawn_i, target, rem_key, place_key))
 
-    print("generate_turns produced:", len(turns))
 
     return turns
 

@@ -1,0 +1,45 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-9.0.3, pluggy-1.6.0 -- C:\Users\ryan lew\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\ryan lew\Desktop\FYP
+plugins: anyio-4.12.0
+collecting ... collected 36 items
+
+test/test_ai.py::test_ai_generates_turns_classic PASSED                  [  2%]
+test/test_ai.py::test_ai_choose_turn_returns_valid_tuple_classic PASSED  [  5%]
+test/test_ai.py::test_ai_returns_move_for_all_modes PASSED               [  8%]
+test/test_ai.py::test_apply_ai_turn_does_not_crash PASSED                [ 11%]
+test/test_ai.py::test_clone_game_does_not_copy_history PASSED            [ 13%]
+test/test_game_rules.py::test_pawn_moves_are_generated PASSED            [ 16%]
+test/test_game_rules.py::test_pawn_cannot_move_onto_another_pawn PASSED  [ 19%]
+test/test_game_rules.py::test_valid_removals_do_not_include_pawn_cells PASSED [ 22%]
+test/test_game_rules.py::test_removable_discs_are_edge_discs PASSED      [ 25%]
+test/test_game_rules.py::test_valid_placements_do_not_include_removed_cell PASSED [ 27%]
+test/test_game_rules.py::test_valid_placements_touch_at_least_two_discs PASSED [ 30%]
+test/test_game_rules.py::test_clicking_pawn_selects_it PASSED            [ 33%]
+test/test_game_rules.py::test_cancel_selection_clears_selected_pawn PASSED [ 36%]
+test/test_game_rules.py::test_pawn_move_changes_phase_to_pick_remove PASSED [ 38%]
+test/test_game_setup.py::test_classic_initial_setup PASSED               [ 41%]
+test/test_game_setup.py::test_mega_initial_setup PASSED                  [ 44%]
+test/test_game_setup.py::test_control_initial_setup PASSED               [ 47%]
+test/test_game_setup.py::test_survival_initial_setup PASSED              [ 50%]
+test/test_modes.py::test_gold_powerup_activates_on_landing PASSED        [ 52%]
+test/test_modes.py::test_silver_powerup_activates_on_landing PASSED      [ 55%]
+test/test_modes.py::test_control_powerups_do_not_activate_outside_control_mode PASSED [ 58%]
+test/test_modes.py::test_special_remove_any_allows_non_edge_disc_removal PASSED [ 61%]
+test/test_modes.py::test_survival_turn_counter_increases_after_human_turn PASSED [ 63%]
+test/test_modes.py::test_survival_turn_counter_does_not_increase_after_ai_turn PASSED [ 66%]
+test/test_regression.py::test_survival_never_spawns_overlapping_pawns PASSED [ 69%]
+test/test_regression.py::test_survival_always_has_correct_pawn_counts PASSED [ 72%]
+test/test_regression.py::test_survival_does_not_spawn_gold_or_silver PASSED [ 75%]
+test/test_regression.py::test_classic_does_not_spawn_gold_or_silver PASSED [ 77%]
+test/test_regression.py::test_control_spawns_gold_and_silver_not_on_pawns PASSED [ 80%]
+test/test_regression.py::test_cancel_after_disc_removal_restores_disc PASSED [ 83%]
+test/test_regression.py::test_right_click_preview_marker_does_not_count_as_real_selection PASSED [ 86%]
+test/test_win_conditions.py::test_classic_connected_pawns_win PASSED     [ 88%]
+test/test_win_conditions.py::test_classic_disconnected_pawns_do_not_win PASSED [ 91%]
+test/test_win_conditions.py::test_mega_requires_all_four_pawns_connected PASSED [ 94%]
+test/test_win_conditions.py::test_survival_human_wins_after_turn_limit PASSED [ 97%]
+test/test_win_conditions.py::test_survival_ai_wins_if_ai_pawns_connected PASSED [100%]
+
+============================= 36 passed in 5.33s ==============================

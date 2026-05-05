@@ -66,7 +66,7 @@ def survival_config() -> GameConfig:
         survival_mode=True,
         survival_turns=15,
         ai_depth=2,
-        ai_top_k=6
+        ai_top_k=4
     )
 
 
@@ -82,5 +82,5 @@ def control_config() -> GameConfig:
         silver_enabled=True,
         respawn_delay_turns=2,
         ai_depth=2,
-        ai_top_k=6
+        ai_top_k=4
     )
