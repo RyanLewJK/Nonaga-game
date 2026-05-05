@@ -1,4 +1,4 @@
-# 📘 Nonaga AI – Final Year Project
+# 📘 Video game Implementation of Nonaga with AI integration – Final Year Project
 
 ## 🎯 Overview
 This project presents a digital implementation of the board game *Nonaga*, developed using **Python** and **Pygame**, with support for both **human vs human** and **human vs AI gameplay**.
