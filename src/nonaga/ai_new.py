@@ -516,8 +516,72 @@ def choose_ai_turn(game, ai_player, depth=2, top_k_placements=8):
 
     return best_turn
 
+def find_powerup_turn(game, ai_player):
+    """
+    If AI can land on a gold or silver disc this turn, prioritise it.
+    Gold is preferred over silver.
+    """
+    targets = []
+
+    if game.gold_disc is not None:
+        targets.append((game.gold_disc, 2))  # higher priority
+
+    if game.silver_disc is not None:
+        targets.append((game.silver_disc, 1))
+
+    if not targets:
+        return None
+
+    best_turn = None
+    best_priority = -1
+
+    for pawn_i, pawn_pos in enumerate(game.pawns[ai_player]):
+        endpoints = game.pawn_moves_from(pawn_pos)
+
+        for target in endpoints:
+            target_key = k(target)
+
+            for powerup_key, priority in targets:
+                if target_key != powerup_key:
+                    continue
+
+                g1 = clone_game(game)
+                g1.current = ai_player
+                g1.pawns[ai_player][pawn_i] = target
+                g1.handle_special_landing(ai_player, target)
+
+                removals = list(g1.compute_valid_removals())
+
+                for rem_key in removals:
+                    g2 = clone_game(g1)
+
+                    if rem_key not in g2.occupied:
+                        continue
+
+                    g2.removable = rem_key
+                    g2.occupied.remove(rem_key)
+
+                    placements = list(g2.compute_valid_placements())
+
+                    for place_key in placements:
+                        if place_key == rem_key:
+                            continue
+
+                        turn = (pawn_i, target, rem_key, place_key)
+
+                        if priority > best_priority:
+                            best_priority = priority
+                            best_turn = turn
+
+    return best_turn
+
+
 def choose_ai_turn_control(game, ai_player):
     opp = "B" if ai_player == "A" else "A"
+
+    powerup_turn = find_powerup_turn(game, ai_player)
+    if powerup_turn is not None:
+        return powerup_turn
 
     turns = generate_turns(game, ai_player, top_k_placements=8, root=False)
 
@@ -534,7 +598,6 @@ def choose_ai_turn_control(game, ai_player):
         if g2.check_any_win() == ai_player:
             return t
 
-        # Let opponent make one greedy response
         opp_turns = generate_turns(g2, opp, top_k_placements=3, root=False)
 
         if not opp_turns:
