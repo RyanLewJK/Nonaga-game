@@ -251,8 +251,13 @@ class Renderer:
         if game.blocked:
             self.draw_text(f"Blocked: {game.blocked}", 14, 110, self.font, UI_MUTED)
 
+        controls = "R: Restart   X: Cancel   Esc: Menu   Right-click: Preview enemy moves"
+
+        if game.phase == Phase.MOVE_PAWN and not game.current_player_has_any_pawn_moves():
+            controls += "   S: Skip pawn move"
+
         self.draw_text(
-            "R: Restart   X: Cancel   Esc: Menu   Right-click: Preview enemy moves",
+            controls,
             14,
             SCREEN_H - 28,
             self.font,

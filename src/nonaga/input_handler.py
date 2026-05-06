@@ -92,6 +92,8 @@ class InputHandler:
         if ev.type == pygame.KEYDOWN:
             if ev.key == pygame.K_r:
                 self.game.reset()
+            elif ev.key == pygame.K_s:
+                self.game.skip_pawn_move_if_stuck()
 
         elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
             mx, my = ev.pos

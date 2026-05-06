@@ -459,6 +459,30 @@ class NonagaGame:
 
         return len(seen) == len(cells)
 
+    def current_player_has_any_pawn_moves(self) -> bool:
+        for pos in self.pawns[self.current]:
+            if self.pawn_moves_from(pos):
+                return True
+        return False
+
+
+    def skip_pawn_move_if_stuck(self):
+        """
+        Allows the player to skip pawn movement only if none of their pawns
+        have any legal moves, then proceed to disc relocation.
+        """
+        if self.phase != Phase.MOVE_PAWN:
+            return False
+
+        if self.current_player_has_any_pawn_moves():
+            return False
+
+        self.selected_idx = None
+        self.valid_moves = []
+        self.phase = Phase.PICK_REMOVE
+        self.valid_removals = self.compute_valid_removals()
+        return True
+
     def check_survival_win(self) -> Optional[str]:
         if not self.config.survival_mode:
             return None
